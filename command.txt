@@ -1,0 +1,31 @@
+
+
+npm install @circle-fin/developer-controlled-wallets typescript tsx
+npm install --save-dev @types/node
+
+sudo npm init -y
+sudo npm install tronweb 
+sudo npm install ethers
+
+sudo npm install tronweb --save
+
+https://tronweb.network/docu/docs/quickstart/
+
+sudo npm install --save-dev typescript
+
+sudo npm install --save express
+npm install -save-dev @types/express
+sudo npm i dotenv
+sudo npm i cors
+sudo npm install prompt-sync
+sudo npm install axios
+npm install --save-dev @types/axios
+
+sudo npm install crypto-js
+sudo npm install mysql2
+
+
+f2d68602-382c-5eca-a719-fe40ac77d234
+
+wallet address 0xdb71689d8da8cfa9f1ae5679590c982bc988ba86
+wallet id d7fc6f95-f2cf-5c5e-b8e9-fff2c71eb128

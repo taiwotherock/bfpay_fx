@@ -1,0 +1,38 @@
+{
+  "name": "bfpay_fx",
+  "version": "1.0.0",
+  "description": "\"# bfpay_fx\"",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/taiwotherock/bfpay_fx.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/taiwotherock/bfpay_fx/issues"
+  },
+  "homepage": "https://github.com/taiwotherock/bfpay_fx#readme",
+  "type": "commonjs",
+  "dependencies": {
+    "@circle-fin/developer-controlled-wallets": "^10.1.0",
+    "axios": "^1.6.0",
+    "cors": "^2.8.6",
+    "dotenv": "^17.3.1",
+    "ethers": "^6.16.0",
+    "express": "^5.2.1",
+    "mysql2": "^3.18.2",
+    "node-forge": "^1.3.3",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3"
+  },
+  "devDependencies": {
+    "@types/axios": "^0.9.36",
+    "@types/express": "^5.0.6",
+    "@types/node": "^25.3.2"
+  }
+}
