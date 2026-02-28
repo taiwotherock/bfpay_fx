@@ -1,2 +1,4 @@
 .env
 command.txt
+node_modules/
+dist/
