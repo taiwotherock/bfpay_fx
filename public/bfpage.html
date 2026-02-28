@@ -1,0 +1,1482 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BFPay — Borderless Fuse Pay</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Sora:wght@300;400;600;700&display=swap" rel="stylesheet">
+<!-- ethers.js v6 -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.13.5/ethers.umd.min.js"></script>
+<style>
+:root {
+  --teal-deep:   #0d4a47;
+  --teal-mid:    #1a6b66;
+  --teal-brand:  #1e8a82;
+  --teal-light:  #2db5aa;
+  --lime:        #c8e05a;
+  --lime-dark:   #a8c03a;
+  --lime-glow:   rgba(200,224,90,0.15);
+  --bg:          #070f0e;
+  --bg2:         #0d1a19;
+  --bg3:         #122422;
+  --border:      rgba(200,224,90,0.12);
+  --border2:     rgba(45,181,170,0.2);
+  --text:        #e8f5f4;
+  --text2:       #8ab8b4;
+  --text3:       #4d7a76;
+  --green:       #4ade80;
+  --yellow:      #fbbf24;
+  --red:         #f87171;
+  --orange:      #fb923c;
+  --font-body:   'Sora', sans-serif;
+  --font-mono:   'DM Mono', monospace;
+}
+
+* { margin:0; padding:0; box-sizing:border-box; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-body);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+body::before {
+  content:'';
+  position:fixed; inset:0;
+  background:
+    radial-gradient(ellipse 60% 40% at 80% 10%, rgba(30,138,130,0.12) 0%, transparent 60%),
+    radial-gradient(ellipse 40% 60% at 10% 80%, rgba(200,224,90,0.06) 0%, transparent 60%);
+  pointer-events:none; z-index:0;
+}
+
+.shell { display:flex; min-height:100vh; position:relative; z-index:1; }
+
+/* ── Sidebar ── */
+.sidebar {
+  width: 220px; flex-shrink:0;
+  background: var(--bg2);
+  border-right: 1px solid var(--border2);
+  display:flex; flex-direction:column;
+  padding: 0 0 24px;
+  position:sticky; top:0; height:100vh;
+}
+
+.logo {
+  padding: 24px 20px 20px;
+  border-bottom: 1px solid var(--border);
+  display:flex; align-items:center; gap:12px;
+}
+.logo-squares { display:grid; grid-template-columns:1fr 1fr; gap:3px; width:32px; height:32px; }
+.sq { border-radius:3px; }
+.sq1 { background: var(--teal-mid); }
+.sq2 { background: var(--lime); }
+.sq3 { background: var(--teal-brand); }
+.sq4 { background: var(--teal-light); }
+.logo-text { font-size:20px; font-weight:700; color:var(--text); letter-spacing:-0.5px; }
+
+nav { padding: 16px 12px; flex:1; }
+.nav-label { font-size:10px; font-weight:600; letter-spacing:1.5px; color:var(--text3); text-transform:uppercase; padding:0 8px; margin:16px 0 6px; }
+.nav-item {
+  display:flex; align-items:center; gap:10px;
+  padding:9px 10px; border-radius:8px;
+  font-size:13.5px; color:var(--text2); cursor:pointer;
+  transition: all 0.15s; margin-bottom:2px; border:none; background:none; width:100%; text-align:left;
+}
+.nav-item:hover  { background:var(--bg3); color:var(--text); }
+.nav-item.active { background:var(--lime-glow); color:var(--lime); border:1px solid rgba(200,224,90,0.2); }
+.nav-icon { font-size:16px; width:20px; text-align:center; }
+
+.sidebar-footer { padding:16px 20px 0; border-top:1px solid var(--border); }
+.oracle-badge { display:flex; align-items:center; gap:8px; font-size:12px; color:var(--text2); }
+.pulse {
+  width:8px; height:8px; background:var(--green);
+  border-radius:50%; flex-shrink:0;
+  box-shadow:0 0 8px var(--green);
+  animation: pulse 2s infinite;
+}
+@keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:0.5;transform:scale(0.8)} }
+
+/* ── Wallet bar (NEW) ── */
+.wallet-bar {
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.wallet-bar .network-dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--text3); flex-shrink:0;
+  transition: background 0.3s;
+}
+.wallet-bar .network-dot.connected { background: var(--green); box-shadow: 0 0 6px var(--green); }
+#wallet-btn {
+  flex:1; padding: 8px 12px; border-radius: 8px;
+  font-size: 12px; font-weight: 600; font-family: var(--font-mono);
+  cursor: pointer; border: 1px solid var(--border2);
+  background: var(--bg3); color: var(--text2);
+  transition: all 0.15s; text-align: left;
+  display: flex; align-items: center; gap: 8px;
+}
+#wallet-btn:hover { border-color: var(--lime); color: var(--lime); }
+#wallet-btn.connected { border-color: rgba(74,222,128,0.3); color: var(--green); background: rgba(74,222,128,0.06); }
+.wallet-fox { font-size: 14px; }
+
+/* ── Main ── */
+.main { flex:1; padding:28px 32px; overflow-y:auto; }
+.page { display:none; }
+.page.active { display:block; animation: fadeIn 0.2s ease; }
+@keyframes fadeIn { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:none} }
+
+.page-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:28px; }
+.page-title { font-size:22px; font-weight:700; letter-spacing:-0.5px; }
+.page-sub   { font-size:13px; color:var(--text2); margin-top:3px; }
+
+.stats { display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-bottom:28px; }
+.stat-card { background:var(--bg2); border:1px solid var(--border); border-radius:14px; padding:20px; transition:border-color 0.2s; }
+.stat-card:hover { border-color:var(--border2); }
+.stat-label { font-size:12px; color:var(--text3); margin-bottom:8px; letter-spacing:0.5px; }
+.stat-value { font-size:26px; font-weight:700; font-family:var(--font-mono); color:var(--text); }
+.stat-value.lime  { color:var(--lime); }
+.stat-value.teal  { color:var(--teal-light); }
+.stat-value.green { color:var(--green); }
+.stat-sub { font-size:12px; color:var(--text3); margin-top:4px; }
+
+.card { background:var(--bg2); border:1px solid var(--border); border-radius:14px; overflow:hidden; margin-bottom:20px; }
+.card-header { padding:18px 22px; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; }
+.card-title { font-size:15px; font-weight:600; }
+.card-body  { padding:22px; }
+
+.table-wrap { overflow-x:auto; }
+table { width:100%; border-collapse:collapse; }
+th { font-size:11px; font-weight:600; letter-spacing:1px; color:var(--text3); text-transform:uppercase; text-align:left; padding:0 14px 12px; border-bottom:1px solid var(--border); }
+td { padding:14px; font-size:13.5px; color:var(--text2); border-bottom:1px solid rgba(255,255,255,0.03); vertical-align:middle; }
+tr:last-child td { border-bottom:none; }
+tr:hover td { background:rgba(255,255,255,0.02); }
+.mono { font-family:var(--font-mono); font-size:12px; }
+
+.badge { display:inline-flex; align-items:center; gap:5px; padding:3px 10px; border-radius:20px; font-size:11.5px; font-weight:600; }
+.badge-green   { background:rgba(74,222,128,0.12); color:var(--green); border:1px solid rgba(74,222,128,0.2); }
+.badge-yellow  { background:rgba(251,191,36,0.12); color:var(--yellow); border:1px solid rgba(251,191,36,0.2); }
+.badge-red     { background:rgba(248,113,113,0.12); color:var(--red); border:1px solid rgba(248,113,113,0.2); }
+.badge-orange  { background:rgba(251,146,60,0.12); color:var(--orange); border:1px solid rgba(251,146,60,0.2); }
+.badge-teal    { background:rgba(45,181,170,0.12); color:var(--teal-light); border:1px solid rgba(45,181,170,0.2); }
+.badge-lime    { background:var(--lime-glow); color:var(--lime); border:1px solid rgba(200,224,90,0.2); }
+
+.btn { display:inline-flex; align-items:center; gap:8px; padding:9px 18px; border-radius:9px; font-size:13.5px; font-weight:600; cursor:pointer; border:none; transition:all 0.15s; font-family:var(--font-body); }
+.btn-primary { background:var(--lime); color:var(--bg); }
+.btn-primary:hover { background:var(--lime-dark); transform:translateY(-1px); box-shadow:0 4px 16px var(--lime-glow); }
+.btn-ghost { background:transparent; color:var(--text2); border:1px solid var(--border2); }
+.btn-ghost:hover { background:var(--bg3); color:var(--text); }
+.btn-sm { padding:6px 12px; font-size:12px; }
+
+/* btn-primary disabled state */
+.btn-primary:disabled { opacity:0.45; cursor:not-allowed; transform:none; box-shadow:none; }
+
+.form-grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+.form-group { display:flex; flex-direction:column; gap:6px; }
+.form-group.full { grid-column:1/-1; }
+label { font-size:12px; color:var(--text3); font-weight:600; letter-spacing:0.5px; }
+input, select { background:var(--bg3); border:1px solid var(--border); border-radius:8px; padding:10px 14px; font-size:14px; color:var(--text); font-family:var(--font-body); outline:none; transition:border-color 0.15s; }
+input:focus, select:focus { border-color:var(--teal-light); }
+select option { background:var(--bg2); }
+
+.hf-bar { display:flex; gap:3px; margin-top:8px; }
+.hf-seg { height:6px; border-radius:3px; flex:1; }
+.hf-g { background:var(--green); }
+.hf-y { background:var(--yellow); }
+.hf-r { background:var(--red); }
+
+.rfq-grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+.rfq-card { background:var(--bg3); border:1px solid var(--border); border-radius:12px; padding:18px; cursor:pointer; transition:all 0.2s; }
+.rfq-card:hover { border-color:var(--lime); box-shadow:0 0 20px var(--lime-glow); }
+.rfq-amount { font-size:22px; font-weight:700; font-family:var(--font-mono); color:var(--lime); }
+.rfq-meta   { display:flex; gap:10px; flex-wrap:wrap; margin-top:10px; }
+
+.timeline { display:flex; flex-direction:column; gap:0; }
+.tl-item  { display:flex; gap:16px; padding-bottom:20px; position:relative; }
+.tl-item:not(:last-child) .tl-line { position:absolute; left:15px; top:30px; width:2px; height:100%; background:var(--border); }
+.tl-dot { width:30px; height:30px; border-radius:50%; flex-shrink:0; display:flex; align-items:center; justify-content:center; font-size:14px; z-index:1; }
+.tl-dot.done    { background:rgba(74,222,128,0.15); border:2px solid var(--green); }
+.tl-dot.active  { background:var(--lime-glow); border:2px solid var(--lime); }
+.tl-dot.pending { background:var(--bg3); border:2px solid var(--border); }
+.tl-body { flex:1; padding-top:4px; }
+.tl-title { font-size:14px; font-weight:600; color:var(--text); }
+.tl-desc  { font-size:12px; color:var(--text2); margin-top:3px; }
+.tl-time  { font-size:11px; color:var(--text3); margin-top:2px; font-family:var(--font-mono); }
+
+#toast-wrap { position:fixed; bottom:24px; right:24px; z-index:999; display:flex; flex-direction:column; gap:10px; }
+.toast { background:var(--bg2); border:1px solid var(--border2); border-radius:10px; padding:12px 18px; font-size:13.5px; color:var(--text); box-shadow:0 8px 32px rgba(0,0,0,0.4); animation:slideUp 0.3s ease; display:flex; align-items:center; gap:10px; min-width:280px; }
+.toast.success { border-color:rgba(74,222,128,0.4); }
+.toast.error   { border-color:rgba(248,113,113,0.4); }
+@keyframes slideUp { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:none} }
+
+.sparkline { height:50px; display:flex; align-items:flex-end; gap:3px; padding-top:8px; }
+.spark-bar { flex:1; background:var(--teal-mid); border-radius:3px 3px 0 0; transition:height 0.3s; }
+.spark-bar.lime { background:var(--lime); }
+
+.modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.7); z-index:100; align-items:center; justify-content:center; }
+.modal-overlay.open { display:flex; }
+.modal { background:var(--bg2); border:1px solid var(--border2); border-radius:16px; padding:28px; width:520px; max-width:95vw; animation:fadeIn 0.2s ease; }
+.modal-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:22px; }
+.modal-title  { font-size:18px; font-weight:700; }
+.modal-close  { background:none; border:none; color:var(--text3); font-size:20px; cursor:pointer; }
+.modal-close:hover { color:var(--text); }
+.modal-footer { display:flex; justify-content:flex-end; gap:10px; margin-top:24px; }
+
+/* ── Wallet connect banner (NEW) ── */
+.wallet-required-hint {
+  font-size:11px; color:var(--yellow);
+  display:none; margin-top:6px;
+}
+.wallet-required-hint.show { display:block; }
+
+/* ── Tx status pill (NEW) ── */
+.tx-status {
+  display:none; align-items:center; gap:8px;
+  padding:8px 14px; border-radius:8px; font-size:12px;
+  font-family:var(--font-mono);
+  background:rgba(45,181,170,0.08); border:1px solid var(--border2);
+  margin-top:12px;
+}
+.tx-status.show { display:flex; }
+.tx-status a { color:var(--teal-light); text-decoration:none; }
+.tx-status a:hover { text-decoration:underline; }
+.tx-spinner {
+  width:12px; height:12px; border:2px solid var(--border2);
+  border-top-color:var(--teal-light); border-radius:50%;
+  animation:spin 0.8s linear infinite;
+}
+@keyframes spin { to{transform:rotate(360deg)} }
+</style>
+</head>
+<body>
+
+<div class="shell">
+
+<!-- ── SIDEBAR ── -->
+<aside class="sidebar">
+  <div class="logo">
+    <div class="logo-squares">
+      <div class="sq sq1"></div><div class="sq sq2"></div>
+      <div class="sq sq3"></div><div class="sq sq4"></div>
+    </div>
+    <span class="logo-text">BFPay</span>
+  </div>
+
+  <!-- ── WALLET CONNECT BUTTON (NEW) ── -->
+  <div class="wallet-bar">
+    <div class="network-dot" id="network-dot"></div>
+    <button id="wallet-btn" onclick="connectWallet()">
+      <span class="wallet-fox">🦊</span>
+      <span id="wallet-btn-label">Connect Wallet</span>
+    </button>
+  </div>
+
+  <nav>
+    <div class="nav-label">Overview</div>
+    <button class="nav-item active" onclick="showPage('dashboard',this)">
+      <span class="nav-icon">⬛</span> Dashboard
+    </button>
+    <div class="nav-label">Trading</div>
+    <button class="nav-item" onclick="showPage('rfq',this)">
+      <span class="nav-icon">📋</span> RFQ Market
+    </button>
+    <button class="nav-item" onclick="showPage('quotes',this)">
+      <span class="nav-icon">💬</span> Quotes
+    </button>
+    <button class="nav-item" onclick="showPage('trades',this)">
+      <span class="nav-icon">🔄</span> Trade List
+    </button>
+    <div class="nav-label">Settlement</div>
+    <button class="nav-item" onclick="showPage('settlement',this)">
+      <span class="nav-icon">✅</span> Settlement
+    </button>
+    <button class="nav-item" onclick="showPage('attestation',this)">
+      <span class="nav-icon">🔐</span> Attestation
+    </button>
+  </nav>
+
+  <div class="sidebar-footer">
+    <div class="oracle-badge">
+      <div class="pulse"></div>
+      <span>Oracle live · 12s ago</span>
+    </div>
+  </div>
+</aside>
+
+<!-- ── MAIN ── -->
+<main class="main">
+
+  <!-- ══ DASHBOARD ══ -->
+  <div id="page-dashboard" class="page active">
+    <div class="page-header">
+      <div>
+        <div class="page-title">Overview</div>
+        <div class="page-sub">Borderless Fuse Pay · B2B Lending Protocol</div>
+      </div>
+      <button class="btn btn-primary" onclick="openModal('new-rfq')">＋ New RFQ</button>
+    </div>
+    <div class="stats">
+      <div class="stat-card">
+        <div class="stat-label">TOTAL VOLUME</div>
+        <div class="stat-value lime">₦2.4B</div>
+        <div class="stat-sub">↑ 18% this week</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">ACTIVE DEALS</div>
+        <div class="stat-value teal">14</div>
+        <div class="stat-sub">3 pending payout</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">COLLATERAL LOCKED</div>
+        <div class="stat-value">$1.82M</div>
+        <div class="stat-sub">USYC + Fiat</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">AVG HEALTH FACTOR</div>
+        <div class="stat-value green">1.68</div>
+        <div class="stat-sub">All positions safe</div>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1.4fr 1fr;gap:20px">
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">Recent Deals</span>
+          <button class="btn btn-ghost btn-sm" onclick="showPage('trades',document.querySelector('[onclick*=trades]'))">View all</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Deal ID</th><th>Amount</th><th>Status</th><th>HF</th></tr></thead>
+            <tbody id="dash-deals"></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header"><span class="card-title">Collateral Health</span></div>
+        <div class="card-body" id="health-monitor"></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Daily Lending Volume (₦)</span>
+        <span class="badge badge-lime">Last 10 days</span>
+      </div>
+      <div class="card-body">
+        <div class="sparkline" id="sparkline"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ RFQ MARKET ══ -->
+  <div id="page-rfq" class="page">
+    <div class="page-header">
+      <div>
+        <div class="page-title">RFQ Market</div>
+        <div class="page-sub">Open requests for Naira liquidity</div>
+      </div>
+      <button class="btn btn-primary" onclick="openModal('new-rfq')">＋ Create RFQ</button>
+    </div>
+    <div class="rfq-grid" id="rfq-grid"></div>
+  </div>
+
+  <!-- ══ QUOTES ══ -->
+  <div id="page-quotes" class="page">
+    <div class="page-header">
+      <div>
+        <div class="page-title">Quote Book</div>
+        <div class="page-sub">Live lender quotes against open RFQs</div>
+      </div>
+      <button class="btn btn-primary" onclick="openModal('submit-quote')">Submit Quote</button>
+    </div>
+    <div class="card">
+      <div class="card-header"><span class="card-title">Active Quotes</span></div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>RFQ Ref</th><th>Lender</th><th>Rate/Day</th><th>Valid Until</th><th>Status</th><th></th></tr></thead>
+          <tbody id="quotes-table"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ TRADE LIST ══ -->
+  <div id="page-trades" class="page">
+    <div class="page-header">
+      <div><div class="page-title">Trade List</div><div class="page-sub">All matched deals and their lifecycle</div></div>
+    </div>
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">All Deals</span>
+        <div style="display:flex;gap:8px">
+          <span class="badge badge-green" onclick="filterDeals('ACTIVE')" style="cursor:pointer">Active</span>
+          <span class="badge badge-teal"  onclick="filterDeals('ALL')"    style="cursor:pointer">All</span>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Deal ID</th><th>Borrower</th><th>Lender</th><th>Amount NGN</th><th>Collateral</th><th>Fee/Day</th><th>Tenor</th><th>Health</th><th>Status</th><th></th></tr></thead>
+          <tbody id="trades-table"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ SETTLEMENT ══ -->
+  <div id="page-settlement" class="page">
+    <div class="page-header">
+      <div><div class="page-title">Settlement</div><div class="page-sub">Confirm fiat payouts and repayments</div></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+      <div class="card">
+        <div class="card-header"><span class="card-title">Confirm Payout</span></div>
+        <div class="card-body">
+          <div class="form-group" style="margin-bottom:14px"><label>DEAL ID</label><input id="payout-dealid" placeholder="0xdeal..." /></div>
+          <div class="form-group" style="margin-bottom:20px"><label>FIAT REFERENCE</label><input id="payout-ref" placeholder="FP-TXN-0001" /></div>
+          <button class="btn btn-primary" onclick="confirmPayout()">✅ Confirm NGN Payout</button>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header"><span class="card-title">Confirm Repayment</span></div>
+        <div class="card-body">
+          <div class="form-group" style="margin-bottom:14px"><label>DEAL ID</label><input id="repay-dealid" placeholder="0xdeal..." /></div>
+          <div class="form-group" style="margin-bottom:20px"><label>REPAYMENT REFERENCE</label><input id="repay-ref" placeholder="FP-REPAY-0001" /></div>
+          <button class="btn btn-primary" onclick="confirmRepayment()">💰 Confirm Repayment</button>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header"><span class="card-title">Settlement Log</span></div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Deal ID</th><th>Type</th><th>Amount NGN</th><th>Fiat Ref</th><th>Confirmed At</th></tr></thead>
+          <tbody id="settlement-log"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ ATTESTATION ══ -->
+  <div id="page-attestation" class="page">
+    <div class="page-header">
+      <div><div class="page-title">Oracle Attestation</div><div class="page-sub">Onchain proof of reserve — JNVA balance attestations</div></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1.4fr;gap:20px">
+      <div class="card">
+        <div class="card-header"><span class="card-title">Push Attestation</span></div>
+        <div class="card-body">
+          <div class="form-group" style="margin-bottom:12px"><label>DEAL ID</label><input id="att-dealid" placeholder="0xdeal..." /></div>
+          <div class="form-group" style="margin-bottom:12px"><label>COLLATERAL USD VALUE</label><input id="att-collateral" placeholder="100000" type="number" /></div>
+          <div class="form-group" style="margin-bottom:12px"><label>OUTSTANDING NGN DRAW</label><input id="att-drawn" placeholder="50000000" type="number" /></div>
+          <div class="form-group" style="margin-bottom:20px"><label>NGN/USD RATE</label><input id="att-rate" placeholder="1580" type="number" value="1580" /></div>
+          <button class="btn btn-primary" style="width:100%" onclick="pushAttestation()">🔐 Attest Onchain</button>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header"><span class="card-title">Attestation History</span></div>
+        <div id="att-history" style="padding:16px"><div id="timeline" class="timeline"></div></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header"><span class="card-title">All Attestations</span></div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Deal</th><th>Collateral USD</th><th>Drawn NGN</th><th>Health Factor</th><th>State</th><th>Oracle</th><th>Time</th></tr></thead>
+          <tbody id="att-table"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</main>
+</div>
+
+<!-- ══ MODALS ══ -->
+
+<!-- New RFQ -->
+<div class="modal-overlay" id="modal-new-rfq">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Create RFQ</div>
+      <button class="modal-close" onclick="closeModal('new-rfq')">✕</button>
+    </div>
+    <div class="form-grid">
+      <div class="form-group">
+        <label>NGN AMOUNT</label>
+        <input id="rfq-amount" placeholder="50000000" type="number" />
+      </div>
+      <div class="form-group">
+        <label>TENOR (DAYS)</label>
+        <input id="rfq-tenor" placeholder="7" type="number" value="7" />
+      </div>
+      <div class="form-group">
+        <label>MAX FEE (BPS/DAY)</label>
+        <input id="rfq-maxfee" placeholder="20" type="number" value="20" />
+      </div>
+      <div class="form-group">
+        <label>COLLATERAL TYPE</label>
+        <select id="rfq-colltype">
+          <option value="0">USYC</option>
+          <option value="1">USDC</option>
+          <option value="2">GBP Fiat</option>
+          <option value="3">USD Fiat</option>
+          <option value="4">EUR Fiat</option>
+        </select>
+      </div>
+      <div class="form-group full">
+        <label>COLLATERAL VALUE (USD)</label>
+        <input id="rfq-collateral" placeholder="100000" type="number" />
+      </div>
+    </div>
+
+    <!-- Wallet hint + tx status (NEW) -->
+    <div id="rfq-wallet-hint" class="wallet-required-hint">
+      ⚠ Connect MetaMask to sign this transaction
+    </div>
+    <div id="rfq-tx-status" class="tx-status">
+      <div class="tx-spinner"></div>
+      <span id="rfq-tx-msg">Waiting for confirmation...</span>
+      <a id="rfq-tx-link" href="#" target="_blank" style="display:none">View tx ↗</a>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('new-rfq')">Cancel</button>
+      <button class="btn btn-primary" id="rfq-submit-btn" onclick="createRFQ()">🦊 Sign & Create RFQ</button>
+    </div>
+  </div>
+</div>
+
+<!-- Submit Quote -->
+<div class="modal-overlay" id="modal-submit-quote">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Submit Quote</div>
+      <button class="modal-close" onclick="closeModal('submit-quote')">✕</button>
+    </div>
+    <div class="form-grid">
+      <div class="form-group full"><label>RFQ ID</label><input id="quote-rfqid" placeholder="0xrfq..." /></div>
+      <div class="form-group"><label>DAILY FEE (BPS)</label><input id="quote-fee" placeholder="15" type="number" value="15" /></div>
+      <div class="form-group"><label>VALID FOR (SECONDS)</label><input id="quote-valid" placeholder="120" type="number" value="120" /></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('submit-quote')">Cancel</button>
+      <button class="btn btn-primary" onclick="submitQuote()">Submit Quote</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-deal-detail">
+  <div class="modal" style="width: 600px;">
+    <div class="modal-header">
+      <div class="modal-title">Deal Specifications</div>
+      <button class="modal-close" onclick="closeModal('deal-detail')">✕</button>
+    </div>
+    
+    <div id="detail-content">
+      </div>
+
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('deal-detail')">Close</button>
+      <button class="btn btn-primary" id="detail-action-btn">Action</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast-wrap"></div>
+
+<script>
+// ═══════════════════════════════════════════════════════════════════
+//  CONTRACT CONFIG — update these to match your deployment
+// ═══════════════════════════════════════════════════════════════════
+const BFPAY_CONTRACT_ADDRESS = '0x799AcafF412FA6354A50efc299c61af40cB0DF85';
+const USDC_CONTRACT_ADDRESS = '0x3600000000000000000000000000000000000000';
+
+
+// Also need ERC-20 ABI for USDC approval
+const ERC20_ABI = [
+  "function approve(address spender, uint256 amount) external returns (bool)",
+  "function allowance(address owner, address spender) external view returns (uint256)",
+  "function balanceOf(address) external view returns (uint256)",
+];
+
+const BFPAY_ABI = [
+  "function createRFQ(uint256 amountNGN, uint256 tenorDays, uint256 maxFeeBPS, uint8 collType, uint256 collateralUSD) returns (bytes32)",
+  "function depositUSYC(bytes32 dealId, uint256 usdcAmount)",
+  "function depositUSDCCollateral(bytes32 dealId, uint256 amount)",
+  "function getAttestationHistory(bytes32 _dealId) external view returns ((bytes32 dealId, uint256 collateralUSD, uint256 drawnNGN, uint256 yieldUSDC, uint256 netFeeNGN, uint256 healthFactor, uint8 healthState, uint256 timestamp, address oracle)[] memory)",
+  "function getAllCollateralPositions() external view returns (bytes32[] memory ids, (uint8 collType, uint256 usycShares, uint256 usdcLocked, uint256 usdcDepositedAmt, uint256 depositedAt)[] memory allPositions)",
+  "function calculateFee(bytes32 _dealId) external view returns (uint256 grossFeeNGN, uint256 yieldOffsetNGN, uint256 netFeeNGN, uint256 daysElapsed)",
+  "function confirmPayout(bytes32 _dealId, string calldata _fiatRef) external",
+  "function confirmRepayment(bytes32 _dealId, string calldata _fiatRef) external",
+  "function acceptQuote(bytes32 _rfqId, uint256 _idx) external  returns (bytes32 dealId)",
+  "function getAllDeals() external view returns (bytes32[] memory ids, (bytes32 id, bytes32 rfqId, address borrower, address lender, uint256 amountNGN, uint256 collateralUSD, uint256 feeBPS, uint256 openedAt, uint256 tenorDays, uint256 healthFactor, uint8 healthState, uint8 collType, uint8 status, string fiatPayoutRef, string fiatRepayRef)[] memory allDeals)",
+  "function getQuotes(bytes32 id) external view returns ((bytes32 rfqId, address lender, uint256 feeBPS, uint256 validUntil, bool accepted)[] memory)",
+  "function submitQuote(bytes32 _rfqId, uint256 _feeBPS, uint256 _validSecs) external",
+  "function getAllRfqs() external view returns (bytes32[] memory, (bytes32 id, address borrower, uint256 amountNGN, uint256 tenorDays, uint256 maxFeeBPS, uint8 collateral, uint256 collateralUSD, uint256 createdAt, uint8 rfqType, bool open)[] memory)",
+  "event RFQCreated(bytes32 indexed id, address indexed borrower, uint256 amountNGN, uint256 tenorDays, uint256 maxFeeBPS, uint8 collType, uint256 collateralUSD)"
+];
+
+// Block explorer base URL (update for your network)
+const EXPLORER_URL = 'https://rpc.testnet.arc.network';
+
+// ═══════════════════════════════════════════════════════════════════
+//  WALLET STATE
+// ═══════════════════════════════════════════════════════════════════
+let mmProvider  = null;   // ethers.BrowserProvider (MetaMask)
+let mmSigner    = null;   // connected signer
+let mmAddress   = null;   // connected wallet address
+let bfpayContract = null; // Contract instance with signer
+let usdcContract = null; // USDC Contract instance with signer (for approvals)
+
+// ── Connect MetaMask ───────────────────────────────────────────────
+async function connectWallet() {
+  // 1. Better Provider Detection
+  const rawProvider = window.ethereum?.providers?.find(p => p.isMetaMask) || window.ethereum;
+
+  if (!rawProvider || !rawProvider.isMetaMask) {
+    toast('MetaMask not found. Please install the extension.', 'error');
+    return;
+  }
+
+  try {
+    // 2. Setup Ethers Provider
+    mmProvider = new ethers.BrowserProvider(rawProvider);
+   
+    
+    // 3. Request Accounts (This triggers the popup)
+    const accounts = await mmProvider.send('eth_requestAccounts', []);
+    
+    if (accounts.length === 0) throw new Error('No accounts found');
+
+    mmSigner = await mmProvider.getSigner();
+    mmAddress = await mmSigner.getAddress();
+
+    // 4. Contract Initialization
+    bfpayContract = new ethers.Contract(BFPAY_CONTRACT_ADDRESS, BFPAY_ABI, mmSigner);
+    usdcContract = new ethers.Contract(USDC_CONTRACT_ADDRESS, ERC20_ABI, mmSigner);
+
+    updateWalletUI(mmAddress);
+    toast(`✅ Connected: ${shortAddr(mmAddress)}`, 'success');
+
+    // 5. Listeners (Scoped to the correct provider)
+    //rawProvider.on('accountsChanged', handleAccountsChanged);
+    //rawProvider.on('chainChanged', () => window.location.reload());
+
+  } catch (err) {
+    console.error(err);
+    const msg = err.code === 4001 ? 'Connection rejected' : 'Connection failed';
+    toast(msg, 'error');
+  }
+}
+
+function disconnectWallet() {
+  mmProvider = mmSigner = mmAddress = bfpayContract = null;
+  document.getElementById('wallet-btn').className = '';
+  document.getElementById('wallet-btn-label').textContent = 'Connect Wallet';
+  document.getElementById('network-dot').classList.remove('connected');
+  document.getElementById('rfq-submit-btn').textContent = '🦊 Sign & Create RFQ';
+  toast('Wallet disconnected', 'teal');
+}
+
+function updateWalletUI(address) {
+  const btn = document.getElementById('wallet-btn');
+  btn.className = 'connected';
+  document.getElementById('wallet-btn-label').textContent = shortAddr(address);
+  document.getElementById('network-dot').classList.add('connected');
+  // Update submit button label
+  document.getElementById('rfq-submit-btn').textContent = '🦊 Sign & Create RFQ';
+}
+
+function shortAddr(addr) {
+  return addr ? addr.slice(0,6) + '...' + addr.slice(-4) : '';
+}
+
+// ── Guard: require wallet ──────────────────────────────────────────
+function requireWallet(hintId) {
+  if (!mmSigner) {
+    if (hintId) {
+      const el = document.getElementById(hintId);
+      if (el) { el.classList.add('show'); setTimeout(() => el.classList.remove('show'), 3000); }
+    }
+    toast('Connect your MetaMask wallet first', 'error');
+    return false;
+  }
+  return true;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  MOCK DATA
+// ═══════════════════════════════════════════════════════════════════
+const DEALS = [
+  { id:"0xd1a2...f3b4", borrower:"0xB1..a2", lender:"0xL9..c4", amountNGN:"50,000,000", collateral:"USYC", fee:"0.15%", tenor:7, hf:1.82, state:"HEALTHY", status:"ACTIVE",   payoutRef:"FP-001", repayRef:""        },
+  { id:"0xc4f1...a2b9", borrower:"0xB2..d1", lender:"0xL3..f2", amountNGN:"120,000,000",collateral:"GBP Fiat",fee:"0.20%",tenor:14,hf:1.43,state:"HEALTHY", status:"ACTIVE",   payoutRef:"FP-002", repayRef:""        },
+  { id:"0xe9b3...7c1a", borrower:"0xB3..e9", lender:"0xL7..a1", amountNGN:"30,000,000", collateral:"USDC",    fee:"0.18%",tenor:3, hf:1.09,state:"WARNING", status:"ACTIVE",   payoutRef:"FP-003", repayRef:""        },
+  { id:"0xa1c2...d4e5", borrower:"0xB4..f1", lender:"0xL2..b3", amountNGN:"75,000,000", collateral:"USYC",    fee:"0.10%",tenor:30,hf:2.10,state:"HEALTHY", status:"REPAID",   payoutRef:"FP-004", repayRef:"FP-R-001"},
+  { id:"0xf7e8...1b2c", borrower:"0xB5..c2", lender:"0xL8..d4", amountNGN:"200,000,000",collateral:"USD Fiat",fee:"0.25%",tenor:7, hf:0.95,state:"MARGIN CALL",status:"ACTIVE",payoutRef:"FP-005", repayRef:""        },
+];
+
+const RFQS = [
+  { id:"0xr1a2...c3d4", borrower:"0xB6..a1", amountNGN:"80,000,000",  tenor:10, maxFee:"0.20%", coll:"USYC",     collVal:"$120K", time:"2 min ago",  quotes:3 },
+  { id:"0xr3c4...e5f6", borrower:"0xB7..b2", amountNGN:"45,000,000",  tenor:5,  maxFee:"0.25%", coll:"GBP Fiat", collVal:"£60K",  time:"8 min ago",  quotes:1 },
+  { id:"0xr5e6...g7h8", borrower:"0xB8..c3", amountNGN:"150,000,000", tenor:14, maxFee:"0.15%", coll:"USYC",     collVal:"$200K", time:"22 min ago", quotes:5 },
+  { id:"0xr7g8...i9j0", borrower:"0xB9..d4", amountNGN:"25,000,000",  tenor:3,  maxFee:"0.30%", coll:"USDC",     collVal:"$18K",  time:"1 hr ago",   quotes:0 },
+];
+
+const QUOTES = [
+  { rfq:"0xr1a2...c3d4", lender:"0xL1..aa", fee:"0.14%", valid:"01:45", accepted:false },
+  { rfq:"0xr1a2...c3d4", lender:"0xL2..bb", fee:"0.17%", valid:"00:32", accepted:false },
+  { rfq:"0xr3c4...e5f6", lender:"0xL3..cc", fee:"0.22%", valid:"03:10", accepted:true  },
+  { rfq:"0xr5e6...g7h8", lender:"0xL4..dd", fee:"0.13%", valid:"04:55", accepted:false },
+  { rfq:"0xr5e6...g7h8", lender:"0xL5..ee", fee:"0.15%", valid:"02:20", accepted:false },
+];
+
+const ATTESTATIONS = [
+  { deal:"0xd1a2...f3b4", collUSD:"$102,400", drawn:"₦50M",  hf:1.82, state:"HEALTHY",     oracle:"0xOrc..11", time:"12s ago" },
+  { deal:"0xc4f1...a2b9", collUSD:"$184,600", drawn:"₦120M", hf:1.43, state:"HEALTHY",     oracle:"0xOrc..11", time:"12s ago" },
+  { deal:"0xe9b3...7c1a", collUSD:"$20,900",  drawn:"₦30M",  hf:1.09, state:"WARNING",     oracle:"0xOrc..11", time:"12s ago" },
+  { deal:"0xf7e8...1b2c", collUSD:"$124,800", drawn:"₦200M", hf:0.95, state:"MARGIN CALL", oracle:"0xOrc..11", time:"12s ago" },
+];
+
+const SETTLEMENT_LOG = [
+  { deal:"0xd1a2...f3b4", type:"PAYOUT",    amount:"₦50,000,000",  ref:"FP-001",   time:"2026-02-27 14:23" },
+  { deal:"0xc4f1...a2b9", type:"PAYOUT",    amount:"₦120,000,000", ref:"FP-002",   time:"2026-02-27 11:05" },
+  { deal:"0xa1c2...d4e5", type:"REPAYMENT", amount:"₦75,000,000",  ref:"FP-R-001", time:"2026-02-26 09:44" },
+  { deal:"0xe9b3...7c1a", type:"PAYOUT",    amount:"₦30,000,000",  ref:"FP-003",   time:"2026-02-26 16:30" },
+];
+
+// ═══════════════════════════════════════════════════════════════════
+//  NAVIGATION
+// ═══════════════════════════════════════════════════════════════════
+function showPage(name, btn) {
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(b=>b.classList.remove('active'));
+  document.getElementById('page-'+name).classList.add('active');
+  if(btn) btn.classList.add('active');
+  renderPage(name);
+}
+
+function renderPage(name) {
+  if(name==='dashboard')   renderDashboard();
+  if(name==='rfq')         renderRFQ();
+  if(name==='quotes')      renderQuotes();
+  if(name==='trades')      renderTrades();
+  if(name==='settlement')  renderSettlement();
+  if(name==='attestation') renderAttestation();
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  RENDERERS
+// ═══════════════════════════════════════════════════════════════════
+function renderDashboard() {
+  const tbody = document.getElementById('dash-deals');
+  tbody.innerHTML = DEALS.slice(0,4).map(d=>`
+    <tr>
+      <td><span class="mono">${d.id}</span></td>
+      <td style="font-family:var(--font-mono);color:var(--lime)">₦${d.amountNGN}</td>
+      <td>${statusBadge(d.status)}</td>
+      <td>${hfBadge(d.hf, d.state)}</td>
+    </tr>`).join('');
+
+  document.getElementById('health-monitor').innerHTML = DEALS.filter(d=>d.status==='ACTIVE').map(d=>`
+    <div style="margin-bottom:16px">
+      <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+        <span style="font-size:12px;color:var(--text2);font-family:var(--font-mono)">${d.id}</span>
+        <span style="font-size:12px;font-weight:600;color:${hfColor(d.state)}">${d.hf}x</span>
+      </div>
+      <div class="hf-bar">
+        <div class="hf-seg hf-g" style="flex:${Math.min(d.hf/2,1)*6}"></div>
+        <div class="hf-seg hf-y" style="flex:1"></div>
+        <div class="hf-seg hf-r" style="flex:0.5"></div>
+      </div>
+      <div style="font-size:11px;color:var(--text3);margin-top:3px">${d.collateral} · ₦${d.amountNGN}</div>
+    </div>`).join('');
+
+  const vals = [180,240,210,320,280,410,380,460,390,520];
+  const max  = Math.max(...vals);
+  document.getElementById('sparkline').innerHTML = vals.map((v,i)=>`
+    <div class="spark-bar ${i===vals.length-1?'lime':''}" style="height:${(v/max)*44}px"></div>`).join('');
+}
+
+//async function renderRFQ() {
+
+async function renderRFQ() {
+
+   connectWallet();
+  const rfqGrid = document.getElementById('rfq-grid');
+  
+  // Show a simple loader while fetching
+  rfqGrid.innerHTML = '<div style="color:var(--text3); padding:20px;">Loading market requests...</div>';
+
+  try {
+    // 1. Single call to get both the IDs and the Struct data
+    // This assumes your Solidity function returns (bytes32[], RFQ[])
+    const [ids, rfqsRaw] = await bfpayContract.getAllRfqs();
+
+    if (ids.length === 0) {
+      rfqGrid.innerHTML = '<div style="color:var(--text3); padding:20px;">No active RFQs found.</div>';
+      return;
+    }
+
+    // 2. Map through the data
+    // We reverse it (.reverse()) so the newest RFQs (last in array) appear first in the grid
+    const htmlContent = rfqsRaw.map((r, i) => {
+      // Only render if the RFQ is still 'open'
+      if (!r.open) return '';
+
+      const id = ids[i];
+      
+      // --- Data Formatting ---
+      // amountNGN is likely a BigInt, format it to a readable string
+      const amount = Number(r.amountNGN).toLocaleString();
+      
+      // collateralUSD is 1e6 scaled (per your struct comment)
+      const collVal = (Number(r.collateralUSD) / 1e6).toLocaleString(undefined, {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2
+      });
+
+      // maxFeeBPS to Percentage (e.g., 500 bps = 5%)
+      const maxFee = (Number(r.maxFeeBPS) / 100).toFixed(2);
+
+      // Handle Enum for CollType (Adjust names based on your Solidity enum order)
+      const collTypes = ["USDC", "ETH", "BTC", "SOL"];
+      const collLabel = collTypes[Number(r.collateral)] || "Other";
+
+      // Format Address: 0x1234...abcd
+      const shortAddr = `${r.borrower.substring(0, 6)}...${r.borrower.substring(38)}`;
+      
+      // Format Date
+      const date = new Date(Number(r.createdAt) * 1000).toLocaleDateString();
+
+      // 3. The Exact HTML Template
+      return `
+        <div class="rfq-card" onclick="openModal2('submit-quote', '${id}')">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start">
+            <div>
+              <div class="rfq-amount">₦${amount}</div>
+              <div style="font-size:12px;color:var(--text3);margin-top:2px;font-family:var(--font-mono)">
+                ${id.substring(0, 14)}...
+              </div>
+            </div>
+            <span class="badge badge-lime">Active</span>
+          </div>
+          
+          <div class="rfq-meta" style="margin-top:12px; display:flex; gap:5px; flex-wrap:wrap;">
+            <span class="badge badge-teal">⏱ ${r.tenorDays}d</span>
+            <span class="badge badge-teal">🔒 ${collLabel}</span>
+            <span class="badge badge-teal">💰 $${collVal}</span>
+            <span class="badge badge-yellow">Max ${maxFee}%/day</span>
+          </div>
+          
+          <div style="font-size:11px;color:var(--text3);margin-top:10px; border-top:1px solid #333; pt-10px">
+            📍 ${shortAddr} · ${date}
+          </div>
+        </div>`;
+    })
+    .reverse() // Newest first
+    .join('');
+
+    rfqGrid.innerHTML = htmlContent || '<div style="color:var(--text3); padding:20px;">No open requests.</div>';
+
+  } catch (err) {
+    console.error("Failed to render RFQ Grid:", err);
+    rfqGrid.innerHTML = `<div style="color:var(--error); padding:20px;">Error connecting to contract. Make sure you are on the right network.</div>`;
+  }
+}
+
+
+function renderQuotesXX() {
+  document.getElementById('quotes-table').innerHTML = QUOTES.map(q=>`
+    <tr>
+      <td><span class="mono">${q.rfq}</span></td>
+      <td><span class="mono">${q.lender}</span></td>
+      <td style="color:var(--lime);font-weight:600">${q.fee}</td>
+      <td><span class="mono">${q.valid}</span></td>
+      <td>${q.accepted?'<span class="badge badge-green">✓ Accepted</span>':'<span class="badge badge-teal">Open</span>'}</td>
+      <td>${q.accepted?'':`<button class="btn btn-primary btn-sm" onclick="acceptQuote('${q.rfq}')">Accept</button>`}</td>
+    </tr>`).join('');
+}
+
+async function renderQuotes() {
+
+    await connectWallet();
+  const tableBody = document.getElementById('quotes-table');
+  tableBody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:20px;">Fetching all market quotes...</td></tr>';
+
+  try {
+    // 1. Bulk fetch all RFQs and their IDs
+    const [ids, rfqsRaw] = await bfpayContract.getAllRfqs();
+
+    if (ids.length === 0) {
+      tableBody.innerHTML = '<tr><td colspan="6" style="text-align:center; padding:20px;">No RFQs found.</td></tr>';
+      return;
+    }
+
+    // 2. Map through IDs to fetch all quote arrays in parallel
+    // This triggers one request per RFQ ID simultaneously
+    const allQuotesResults = await Promise.all(ids.map(id => bfpayContract.getQuotes(id)));
+
+    // 3. Nested Loop Rendering
+    // Outer loop: Iterates through the RFQ list
+    const finalHtml = allQuotesResults.map((quotesForThisRfq, index) => {
+      
+      // Inner loop: Iterates through the Quote[] array for this specific RFQ
+      return quotesForThisRfq.map((q, qIndex) => {
+        // --- Data Formatting ---
+        const shortRfq = `${q.rfqId.substring(0, 8)}...`;
+        const shortLender = `${q.lender.substring(0, 6)}...${q.lender.substring(38)}`;
+        const feePercent = (Number(q.feeBPS) / 100).toFixed(2) + '%';
+        const expiry = new Date(Number(q.validUntil) * 1000).toLocaleDateString();
+
+        return `
+          <tr>
+            <td><span class="mono" title="${q.rfqId}">${shortRfq}</span></td>
+            <td><span class="mono">${shortLender}</span></td>
+            <td style="color:var(--lime);font-weight:600">${feePercent}</td>
+            <td><span class="mono">${expiry}</span></td>
+            <td>
+              ${q.accepted 
+                ? '<span class="badge badge-green">✓ Accepted</span>' 
+                : '<span class="badge badge-teal">Open</span>'}
+            </td>
+            <td>
+              ${q.accepted 
+                ? '' 
+                : `<button class="btn btn-primary btn-sm" onclick="acceptQuote('${q.rfqId}', '${qIndex}')">Accept</button>`}
+            </td>
+          </tr>`;
+      }).join(''); // Join the inner quote rows
+    }).join(''); // Join the outer RFQ groups
+
+    // 4. Update the UI
+    tableBody.innerHTML = finalHtml || '<tr><td colspan="6" style="text-align:center; padding:20px; color:var(--text3);">No quotes submitted in the market yet.</td></tr>';
+
+  } catch (err) {
+    console.error("Error rendering nested quotes:", err);
+    tableBody.innerHTML = '<tr><td colspan="6" style="text-align:center; color:var(--error);">Failed to load market data. Check console for details.</td></tr>';
+  }
+}
+
+function renderTradesXX(filter='ALL') {
+  const list = filter==='ALL' ? DEALS : DEALS.filter(d=>d.status===filter);
+  document.getElementById('trades-table').innerHTML = list.map(d=>`
+    <tr>
+      <td><span class="mono">${d.id}</span></td>
+      <td><span class="mono" style="color:var(--text3)">${d.borrower}</span></td>
+      <td><span class="mono" style="color:var(--text3)">${d.lender}</span></td>
+      <td style="color:var(--lime);font-family:var(--font-mono)">₦${d.amountNGN}</td>
+      <td><span class="badge badge-teal">${d.collateral}</span></td>
+      <td style="color:var(--lime)">${d.fee}</td>
+      <td>${d.tenor}d</td>
+      <td>${hfBadge(d.hf, d.state)}</td>
+      <td>${statusBadge(d.status)}</td>
+      <td><button class="btn btn-ghost btn-sm" onclick="showDealDetail('${d.id}')">Details</button></td>
+    </tr>`).join('');
+}
+
+async function renderTrades(filter = 'ALL') {
+  const tradesTable = document.getElementById('trades-table');
+  if (!tradesTable) return;
+
+  if (!bfpayContract) {
+    if (typeof connectWallet === 'function') await connectWallet();
+  }
+
+  tradesTable.innerHTML = '<tr><td colspan="10" style="text-align:center; padding:30px;">Loading Market Data...</td></tr>';
+
+  try {
+    // 1. Fetch Bulk Data (Tuple ABI)
+    // ids = bytes32[], allDeals = Result[] (Tuples)
+    const [ids, allDeals] = await bfpayContract.getAllDeals();
+    
+    let userAddr = "";
+    try { userAddr = (await signer.getAddress()).toLowerCase(); } catch (e) {}
+
+    // 2. Build the display list using Numeric Indices from your Tuple
+    const displayData = allDeals
+      .map((d, index) => ({ 
+        hexId: ids[index],
+        borrower: d[2],    // address borrower
+        lender: d[3],      // address lender
+        amountNGN: d[4],   // uint256 amountNGN
+        feeBPS: d[6],      // uint256 feeBPS
+        tenorDays: d[8],   // uint256 tenorDays
+        hf: d[9],          // uint256 healthFactor
+        hState: d[10],     // uint8 healthState
+        collType: d[11],   // uint8 collType
+        status: d[12]      // DealStatus status
+      }))
+      .filter(d => {
+        if (filter === 'MINE') {
+          return d.borrower.toLowerCase() === userAddr || d.lender.toLowerCase() === userAddr;
+        }
+        return true; 
+      });
+
+    if (displayData.length === 0) {
+      tradesTable.innerHTML = `<tr><td colspan="10" style="text-align:center; padding:40px;">No trades found.</td></tr>`;
+      return;
+    }
+
+    // 3. Render HTML
+    tradesTable.innerHTML = displayData.map((d) => {
+      const shortId = `${d.hexId.substring(0, 8)}...`;
+      const shortB = `${d.borrower.substring(0, 6)}...${d.borrower.slice(-4)}`;
+      
+      const isOpen = d.lender === "0x0000000000000000000000000000000000000000";
+      const shortL = isOpen ? '<span class="badge badge-teal">Open</span>' : `${d.lender.substring(0, 6)}...${d.lender.slice(-4)}`;
+      
+      const amount = Number(d.amountNGN).toLocaleString();
+      const fee = (Number(d.feeBPS) / 100).toFixed(2) + '%';
+      const hfValue = (Number(d.hf) / 1e18).toFixed(2);
+
+      console.log("USD Collateral Type:", d.collType);
+
+      const collMap = ["USYC_YIELD", "USDC_ONLY", "ETH", "BTC", "NGN", "GBP"];
+      const collateralLabel = collMap[Number(d.collType)] || "OTHER";
+
+      return `
+        <tr>
+          <td><span class="mono">${shortId}</span></td>
+          <td><span class="mono" style="color:var(--text3)">${shortB}</span></td>
+          <td><span class="mono" style="color:var(--text3)">${shortL}</span></td>
+          <td style="color:var(--lime); font-family:var(--font-mono)">₦${amount}</td>
+          <td><span class="badge badge-teal">${collateralLabel}</span></td>
+          <td style="color:var(--lime)">${fee}</td>
+          <td>${d.tenorDays.toString()}d</td>
+          <td>${typeof hfBadge === 'function' ? hfBadge(hfValue, Number(d.hState)) : hfValue}</td>
+          <td>${typeof statusBadge === 'function' ? statusBadge(Number(d.status)) : d.status}</td>
+          <td>
+            <button class="btn btn-ghost btn-sm" onclick="showDealDetail('${d.hexId}')">
+              Details
+            </button>
+          </td>
+        </tr>`;
+    })
+    .reverse()
+    .join('');
+
+  } catch (err) {
+    console.error("Critical Render Error:", err);
+    tradesTable.innerHTML = '<tr><td colspan="10" style="text-align:center; color:var(--error);">Failed to decode trade data.</td></tr>';
+  }
+}
+
+async function showDealDetail(dealId) {
+    // 1. Fetch all deals to find the specific one (or use a global variable if you stored them)
+    const [ids, allDeals] = await bfpayContract.getAllDeals();
+    const index = ids.indexOf(dealId);
+    
+    if (index === -1) {
+        toast("Deal not found", "error");
+        return;
+    }
+
+    const d = allDeals[index];
+    const content = document.getElementById('detail-content');
+    
+    // Formatting Helpers
+    const hfValue = (Number(d[9]) / 1e18).toFixed(2);
+    const date = new Date(Number(d[7]) * 1000).toLocaleString();
+    const statusMap = ["PENDING", "ACTIVE", "REPAID", "LIQUIDATED", "CLOSED"];
+    const collMap = ["USDC_ONLY", "USYC_YIELD", "ETH", "BTC", "NGN", "GBP"];
+
+    content.innerHTML = `
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:20px; background:var(--bg3); padding:20px; border-radius:12px; border:1px solid var(--border);">
+            <div class="form-group">
+                <label>DEAL ID</label>
+                <div class="mono" style="font-size:11px; color:var(--teal-light); overflow-wrap:break-word;">${dealId}</div>
+            </div>
+            <div class="form-group">
+                <label>STATUS</label>
+                <div>${statusBadge(Number(d[12]))}</div>
+            </div>
+            <div class="form-group">
+                <label>BORROWER</label>
+                <div class="mono">${d[2]}</div>
+            </div>
+            <div class="form-group">
+                <label>LENDER</label>
+                <div class="mono">${d[3]}</div>
+            </div>
+            <div class="form-group">
+                <label>LOAN AMOUNT</label>
+                <div style="color:var(--lime); font-weight:700;">₦${Number(d[4]).toLocaleString()}</div>
+            </div>
+            <div class="form-group">
+                <label>COLLATERAL</label>
+                <div>${collMap[Number(d[11])]} ($${Number(d[5]).toLocaleString()})</div>
+            </div>
+            <div class="form-group">
+                <label>HEALTH FACTOR</label>
+                <div style="font-weight:700;">${hfValue}</div>
+            </div>
+            <div class="form-group">
+                <label>OPENED AT</label>
+                <div style="font-size:12px; color:var(--text3)">${date}</div>
+            </div>
+        </div>
+
+        <div style="margin-top:20px; padding:15px; border-left:3px solid var(--teal-light); background:rgba(30,138,130,0.05)">
+            <label style="display:block; margin-bottom:8px; color:var(--teal-light)">BANK SETTLEMENT DATA</label>
+            <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
+                <span style="font-size:12px;">Payout Ref:</span>
+                <span class="mono" style="color:var(--text)">${d[13] || '---'}</span>
+            </div>
+            <div style="display:flex; justify-content:space-between;">
+                <span style="font-size:12px;">Repayment Ref:</span>
+                <span class="mono" style="color:var(--text)">${d[14] || '---'}</span>
+            </div>
+        </div>
+    `;
+
+    // 3. Update Action Button based on status
+    const actionBtn = document.getElementById('detail-action-btn');
+    if (Number(d[12]) === 0) { // Pending
+        actionBtn.innerText = "Confirm Payout";
+        actionBtn.onclick = () => { closeModal('deal-detail'); showPage('settlement'); };
+    } else {
+        actionBtn.innerText = "View on Explorer";
+        actionBtn.onclick = () => window.open(`${EXPLORER_URL}/tx/${dealId}`, '_blank');
+    }
+
+    openModal('deal-detail');
+}
+
+function renderSettlement() {
+  document.getElementById('settlement-log').innerHTML = SETTLEMENT_LOG.map(s=>`
+    <tr>
+      <td><span class="mono">${s.deal}</span></td>
+      <td><span class="badge ${s.type==='PAYOUT'?'badge-teal':'badge-green'}">${s.type}</span></td>
+      <td style="font-family:var(--font-mono);color:var(--lime)">${s.amount}</td>
+      <td><span class="mono">${s.ref}</span></td>
+      <td style="color:var(--text3);font-size:12px">${s.time}</td>
+    </tr>`).join('');
+}
+
+function renderAttestation() {
+  document.getElementById('timeline').innerHTML = [
+    { icon:'🔐', title:'Oracle Signed',         desc:'Balance fetched from banking API',            time:'12s ago', done:true  },
+    { icon:'📡', title:'Attestation Pushed',     desc:'Tx: 0x7a3f...2b1c · Block 18,423,791',       time:'12s ago', done:true  },
+    { icon:'📊', title:'Health Factor Updated',  desc:'HF = 1.82 · HEALTHY',                        time:'12s ago', done:true  },
+    { icon:'🔔', title:'Next Attestation',       desc:'In ~48 seconds',                             time:'',        done:false },
+  ].map(t=>`
+    <div class="tl-item">
+      <div class="tl-line"></div>
+      <div class="tl-dot ${t.done?'done':'pending'}">${t.icon}</div>
+      <div class="tl-body">
+        <div class="tl-title">${t.title}</div>
+        <div class="tl-desc">${t.desc}</div>
+        ${t.time?`<div class="tl-time">${t.time}</div>`:''}
+      </div>
+    </div>`).join('');
+
+  document.getElementById('att-table').innerHTML = ATTESTATIONS.map(a=>`
+    <tr>
+      <td><span class="mono">${a.deal}</span></td>
+      <td style="color:var(--lime)">${a.collUSD}</td>
+      <td>${a.drawn}</td>
+      <td style="font-family:var(--font-mono);font-weight:600;color:${hfColor(a.state)}">${a.hf}x</td>
+      <td>${stateBadge(a.state)}</td>
+      <td><span class="mono" style="color:var(--text3)">${a.oracle}</span></td>
+      <td style="color:var(--text3);font-size:12px">${a.time}</td>
+    </tr>`).join('');
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  BADGE HELPERS
+// ═══════════════════════════════════════════════════════════════════
+function statusBadge(s) {
+  const m = { ACTIVE:'badge-teal', MATCHED:'badge-lime', REPAID:'badge-green', LIQUIDATED:'badge-red', OPEN:'badge-yellow' };
+  return `<span class="badge ${m[s]||'badge-teal'}">${s}</span>`;
+}
+function stateBadge(s) {
+  const m = { HEALTHY:'badge-green', WARNING:'badge-yellow', 'MARGIN CALL':'badge-orange', LIQUIDATING:'badge-red' };
+  return `<span class="badge ${m[s]||'badge-teal'}">${s}</span>`;
+}
+function hfBadge(hf, state) {
+  return `<span style="font-family:var(--font-mono);color:${hfColor(state)}">${hf}x</span>`;
+}
+function hfColor(state) {
+  return { HEALTHY:'var(--green)', WARNING:'var(--yellow)', 'MARGIN CALL':'var(--orange)', LIQUIDATING:'var(--red)' }[state] || 'var(--text)';
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  MODAL
+// ═══════════════════════════════════════════════════════════════════
+function openModal2(name,idx)  { 
+
+    if (idx !== undefined && name === 'submit-quote') {
+      document.getElementById('quote-rfqid').value = idx;
+    }
+    console.log('Opening modal:', name, 'with idx:', idx);
+    document.getElementById('quote-rfqid').value = idx;
+
+    document.getElementById('modal-'+name).classList.add('open');
+
+}
+function openModal(name)  { 
+
+   document.getElementById('modal-'+name).classList.add('open');
+
+}
+function closeModal(name) {
+  document.getElementById('modal-'+name).classList.remove('open');
+  // Reset tx status on RFQ modal close
+  if (name === 'new-rfq') {
+    setRfqTxStatus(false);
+    document.getElementById('rfq-submit-btn').disabled = false;
+    document.getElementById('rfq-submit-btn').textContent = '🦊 Sign & Create RFQ';
+  }
+}
+
+// ── Tx status helpers ──────────────────────────────────────────────
+function setRfqTxStatus(show, msg, txHash) {
+  const el   = document.getElementById('rfq-tx-status');
+  const msgEl = document.getElementById('rfq-tx-msg');
+  const linkEl = document.getElementById('rfq-tx-link');
+  if (show) {
+    el.classList.add('show');
+    msgEl.textContent = msg || 'Processing...';
+    if (txHash) {
+      linkEl.href = EXPLORER_URL + txHash;
+      linkEl.style.display = 'inline';
+    } else {
+      linkEl.style.display = 'none';
+    }
+  } else {
+    el.classList.remove('show');
+    linkEl.style.display = 'none';
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  ACTIONS
+// ═══════════════════════════════════════════════════════════════════
+
+// ── Create RFQ — MetaMask signs onchain ───────────────────────────
+async function createRFQ() {
+
+    connectWallet();
+  if (!requireWallet('rfq-wallet-hint')) return;
+
+  const amt      = document.getElementById('rfq-amount').value;
+  const tenor    = document.getElementById('rfq-tenor').value;
+  const maxfee   = document.getElementById('rfq-maxfee').value;
+  const collType = document.getElementById('rfq-colltype').value;
+  const collV    = document.getElementById('rfq-collateral').value;
+
+  if (!amt || !collV) { toast('Please fill all fields', 'error'); return; }
+
+  // Disable button while pending
+  const btn = document.getElementById('rfq-submit-btn');
+  btn.disabled = true;
+  btn.textContent = '⏳ Waiting for MetaMask...';
+  setRfqTxStatus(true, 'Confirm in MetaMask...');
+
+  try {
+    const amountNGN     = BigInt(amt);
+    const collateralUSD = BigInt(Math.round(Number(collV) * 1e6));
+    const maxFeeBPS     = Number(maxfee);
+
+    console.log('mmAddress:', mmAddress);
+
+     try {
+          const res = await fetch('/api/rfq/whitelist', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                walletAddress:     mmAddress // convert to 1e6
+            })
+          });
+        console.log('Whitelist response:', res);
+    } catch (err) {
+        console.error('Whitelist API error:', err);
+    }
+
+    
+
+    // ── MetaMask popup ──
+    const tx = await bfpayContract.createRFQ(
+      amountNGN,
+      Number(tenor),
+      maxFeeBPS,
+      Number(collType),
+      collateralUSD
+    );
+
+    btn.textContent = '⏳ Confirming on-chain...';
+    setRfqTxStatus(true, `Tx submitted: ${tx.hash.slice(0,14)}...`, tx.hash);
+    toast(`Tx submitted: ${tx.hash.slice(0,14)}...`, 'teal');
+
+    const receipt = await tx.wait();
+
+    // Parse RFQCreated event for rfqId
+    const iface  = new ethers.Interface(BFPAY_ABI);
+    const log    = receipt.logs.find(l => { try { return iface.parseLog(l)?.name === 'RFQCreated'; } catch { return false; } });
+    const rfqId  = log ? iface.parseLog(log).args.id : tx.hash;
+
+    // Add to local list
+    const collText = document.getElementById('rfq-colltype').options[document.getElementById('rfq-colltype').selectedIndex].text;
+    RFQS.unshift({
+      id:        rfqId,
+      borrower:  shortAddr(mmAddress),
+      amountNGN: Number(amt).toLocaleString(),
+      tenor:     Number(tenor),
+      maxFee:    (maxFeeBPS / 100) + '%',
+      coll:      collText,
+      collVal:   '$' + collV,
+      time:      'just now',
+      quotes:    0
+    });
+
+    setRfqTxStatus(false);
+    closeModal('new-rfq');
+    toast(`✅ RFQ created! ID: ${rfqId.slice(0,14)}...`, 'success');
+    renderRFQ();
+
+  } catch (err) {
+    setRfqTxStatus(false);
+    btn.disabled = false;
+    btn.textContent = '🦊 Sign & Create RFQ';
+
+    if (err.code === 4001 || err.code === 'ACTION_REJECTED') {
+      toast('Transaction rejected in MetaMask', 'error');
+    } else {
+      const reason = err.reason ?? err.shortMessage ?? err.message ?? 'Unknown error';
+      toast(`❌ Failed: ${reason}`, 'error');
+      console.error('[createRFQ]', err);
+    }
+  }
+}
+
+async function submitQuote() {
+  const rfqId = document.getElementById('quote-rfqid').value ;
+  const fee   = document.getElementById('quote-fee').value;
+  const valid = document.getElementById('quote-valid').value;
+  closeModal('submit-quote');
+  toast(`Submitting quote ${fee/100}%/day for ${valid} seconds...`,'teal');
+
+   const tx = await bfpayContract.submitQuote(
+      rfqId,
+      Number(fee),
+      Number(valid)
+    );
+    
+
+    //btn.textContent = '⏳ Confirming on-chain...';
+    //setRfqTxStatus(true, `Tx submitted: ${tx.hash.slice(0,14)}...`, tx.hash);
+    toast(`Tx submitted: ${tx.hash.slice(0,14)}...`, 'teal');
+
+
+  /*setTimeout(()=>{
+    QUOTES.unshift({ rfq:rfqId, lender:'0xYou..00', fee:(fee/100)+'%', valid:'02:00', accepted:false });
+    toast(`✅ Quote submitted at ${fee/100}%/day`,'success');
+    renderQuotes();
+  }, 1200);*/
+}
+
+async function acceptQuote(rfqId, qIndex) {
+
+  toast(`Accepting best quote for ${rfqId}...`,'teal');
+  //const rfqId = document.getElementById('quote-rfqid').value ;
+  //const fee   = document.getElementById('quote-fee').value;
+  //const valid = document.getElementById('quote-valid').value;
+  closeModal('submit-quote');
+  toast(`Accepting quote ${qIndex} for RFQ ${rfqId}...`,'teal');
+
+   const tx = await bfpayContract.acceptQuote(rfqId, qIndex);
+   tx.wait();
+
+    toast(`Tx submitted: ${tx.hash.slice(0,14)}...`, 'teal');
+
+}
+
+function confirmPayout() {
+  const id  = document.getElementById('payout-dealid').value;
+  const ref = document.getElementById('payout-ref').value;
+  if(!id||!ref) { toast('Enter deal ID and fiat reference','error'); return; }
+  toast(`Confirming payout for ${id.slice(0,12)}...`,'teal');
+  setTimeout(()=>{
+    SETTLEMENT_LOG.unshift({ deal:id, type:'PAYOUT', amount:'₦—', ref, time:new Date().toLocaleString() });
+    toast(`✅ Payout confirmed | ${ref}`,'success');
+    renderSettlement();
+    document.getElementById('payout-dealid').value='';
+    document.getElementById('payout-ref').value='';
+  }, 1400);
+}
+
+function confirmRepayment() {
+  const id  = document.getElementById('repay-dealid').value;
+  const ref = document.getElementById('repay-ref').value;
+  if(!id||!ref) { toast('Enter deal ID and repayment reference','error'); return; }
+  toast(`Confirming repayment for ${id.slice(0,12)}...`,'teal');
+  setTimeout(()=>{
+    SETTLEMENT_LOG.unshift({ deal:id, type:'REPAYMENT', amount:'₦—', ref, time:new Date().toLocaleString() });
+    toast(`✅ Repayment confirmed | ${ref}`,'success');
+    renderSettlement();
+    document.getElementById('repay-dealid').value='';
+    document.getElementById('repay-ref').value='';
+  }, 1400);
+}
+
+function pushAttestation() {
+  const deal = document.getElementById('att-dealid').value;
+  const coll = document.getElementById('att-collateral').value;
+  const draw = document.getElementById('att-drawn').value;
+  const rate = document.getElementById('att-rate').value;
+  if(!deal||!coll||!draw) { toast('Fill all attestation fields','error'); return; }
+  const hf = ((coll * 0.8 * rate) / draw).toFixed(2);
+  const state = hf>=1.1?'HEALTHY':hf>=1.0?'WARNING':'MARGIN CALL';
+  toast(`Signing & pushing attestation onchain...`,'teal');
+  setTimeout(()=>{
+    ATTESTATIONS.unshift({ deal:deal.slice(0,14)+'...', collUSD:'$'+Number(coll).toLocaleString(), drawn:'₦'+Number(draw).toLocaleString(), hf:Number(hf), state, oracle:'0xOrc..11', time:'just now' });
+    toast(`✅ Attested onchain | HF: ${hf}x · ${state}`,'success');
+    renderAttestation();
+    document.getElementById('att-dealid').value='';
+  }, 1800);
+}
+
+function filterDeals(f) { renderTrades(f); }
+//function showDealDetail(id) { toast(`Deal details for ${id}`,'teal'); }
+
+// ═══════════════════════════════════════════════════════════════════
+//  TOAST
+// ═══════════════════════════════════════════════════════════════════
+function toast(msg, type='teal') {
+  const icons = { success:'✅', error:'❌', teal:'⚡' };
+  const wrap = document.getElementById('toast-wrap');
+  const el   = document.createElement('div');
+  el.className = `toast ${type==='success'?'success':type==='error'?'error':''}`;
+  el.innerHTML = `<span>${icons[type]||'ℹ'}</span><span>${msg}</span>`;
+  wrap.appendChild(el);
+  setTimeout(()=>{
+    el.style.opacity='0'; el.style.transform='translateY(8px)'; el.style.transition='all 0.3s';
+    setTimeout(()=>el.remove(), 300);
+  }, 3500);
+}
+
+// ═══════════════════════════════════════════════════════════════════
+//  INIT
+// ═══════════════════════════════════════════════════════════════════
+renderDashboard();
+
+// Auto-reconnect if MetaMask was already connected
+(async () => {
+  if (window.ethereum) {
+    const accounts = await window.ethereum.request({ method: 'eth_accounts' });
+    if (accounts.length > 0) {
+      await connectWallet();
+    }
+  }
+})();
+
+setInterval(()=>{
+  document.querySelector('.pulse').style.background='var(--lime)';
+  setTimeout(()=>{ document.querySelector('.pulse').style.background='var(--green)'; }, 500);
+}, 12000);
+</script>
+</body>
+</html>

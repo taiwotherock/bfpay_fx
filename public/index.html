@@ -1,0 +1,1038 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BFPay — Borderless Fuse Pay</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Sora:wght@300;400;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --teal-deep:   #0d4a47;
+  --teal-mid:    #1a6b66;
+  --teal-brand:  #1e8a82;
+  --teal-light:  #2db5aa;
+  --lime:        #c8e05a;
+  --lime-dark:   #a8c03a;
+  --lime-glow:   rgba(200,224,90,0.15);
+  --bg:          #070f0e;
+  --bg2:         #0d1a19;
+  --bg3:         #122422;
+  --border:      rgba(200,224,90,0.12);
+  --border2:     rgba(45,181,170,0.2);
+  --text:        #e8f5f4;
+  --text2:       #8ab8b4;
+  --text3:       #4d7a76;
+  --green:       #4ade80;
+  --yellow:      #fbbf24;
+  --red:         #f87171;
+  --orange:      #fb923c;
+  --font-body:   'Sora', sans-serif;
+  --font-mono:   'DM Mono', monospace;
+}
+
+* { margin:0; padding:0; box-sizing:border-box; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-body);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* Background texture */
+body::before {
+  content:'';
+  position:fixed; inset:0;
+  background:
+    radial-gradient(ellipse 60% 40% at 80% 10%, rgba(30,138,130,0.12) 0%, transparent 60%),
+    radial-gradient(ellipse 40% 60% at 10% 80%, rgba(200,224,90,0.06) 0%, transparent 60%);
+  pointer-events:none; z-index:0;
+}
+
+/* ── Layout ── */
+.shell { display:flex; min-height:100vh; position:relative; z-index:1; }
+
+/* ── Sidebar ── */
+.sidebar {
+  width: 220px; flex-shrink:0;
+  background: var(--bg2);
+  border-right: 1px solid var(--border2);
+  display:flex; flex-direction:column;
+  padding: 0 0 24px;
+  position:sticky; top:0; height:100vh;
+}
+
+.logo {
+  padding: 24px 20px 20px;
+  border-bottom: 1px solid var(--border);
+  display:flex; align-items:center; gap:12px;
+}
+
+.logo-squares {
+  display:grid; grid-template-columns:1fr 1fr; gap:3px; width:32px; height:32px;
+}
+.sq { border-radius:3px; }
+.sq1 { background: var(--teal-mid); }
+.sq2 { background: var(--lime); }
+.sq3 { background: var(--teal-brand); }
+.sq4 { background: var(--teal-light); }
+
+.logo-text { font-size:20px; font-weight:700; color:var(--text); letter-spacing:-0.5px; }
+
+nav { padding: 16px 12px; flex:1; }
+.nav-label {
+  font-size:10px; font-weight:600; letter-spacing:1.5px; color:var(--text3);
+  text-transform:uppercase; padding:0 8px; margin:16px 0 6px;
+}
+.nav-item {
+  display:flex; align-items:center; gap:10px;
+  padding:9px 10px; border-radius:8px;
+  font-size:13.5px; color:var(--text2); cursor:pointer;
+  transition: all 0.15s; margin-bottom:2px; border:none; background:none; width:100%; text-align:left;
+}
+.nav-item:hover  { background:var(--bg3); color:var(--text); }
+.nav-item.active { background:var(--lime-glow); color:var(--lime); border:1px solid rgba(200,224,90,0.2); }
+.nav-icon { font-size:16px; width:20px; text-align:center; }
+
+.sidebar-footer {
+  padding:16px 20px 0;
+  border-top:1px solid var(--border);
+}
+.oracle-badge {
+  display:flex; align-items:center; gap:8px;
+  font-size:12px; color:var(--text2);
+}
+.pulse {
+  width:8px; height:8px; background:var(--green);
+  border-radius:50%; flex-shrink:0;
+  box-shadow:0 0 8px var(--green);
+  animation: pulse 2s infinite;
+}
+@keyframes pulse {
+  0%,100%{opacity:1;transform:scale(1)}
+  50%{opacity:0.5;transform:scale(0.8)}
+}
+
+/* ── Main ── */
+.main { flex:1; padding:28px 32px; overflow-y:auto; }
+
+.page { display:none; }
+.page.active { display:block; animation: fadeIn 0.2s ease; }
+@keyframes fadeIn { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:none} }
+
+/* ── Page header ── */
+.page-header {
+  display:flex; align-items:center; justify-content:space-between;
+  margin-bottom:28px;
+}
+.page-title { font-size:22px; font-weight:700; letter-spacing:-0.5px; }
+.page-sub   { font-size:13px; color:var(--text2); margin-top:3px; }
+
+/* ── Stats row ── */
+.stats { display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-bottom:28px; }
+.stat-card {
+  background:var(--bg2); border:1px solid var(--border);
+  border-radius:14px; padding:20px;
+  transition:border-color 0.2s;
+}
+.stat-card:hover { border-color:var(--border2); }
+.stat-label { font-size:12px; color:var(--text3); margin-bottom:8px; letter-spacing:0.5px; }
+.stat-value { font-size:26px; font-weight:700; font-family:var(--font-mono); color:var(--text); }
+.stat-value.lime  { color:var(--lime); }
+.stat-value.teal  { color:var(--teal-light); }
+.stat-value.green { color:var(--green); }
+.stat-sub { font-size:12px; color:var(--text3); margin-top:4px; }
+
+/* ── Cards ── */
+.card {
+  background:var(--bg2); border:1px solid var(--border);
+  border-radius:14px; overflow:hidden; margin-bottom:20px;
+}
+.card-header {
+  padding:18px 22px; border-bottom:1px solid var(--border);
+  display:flex; align-items:center; justify-content:space-between;
+}
+.card-title { font-size:15px; font-weight:600; }
+.card-body  { padding:22px; }
+
+/* ── Tables ── */
+.table-wrap { overflow-x:auto; }
+table { width:100%; border-collapse:collapse; }
+th {
+  font-size:11px; font-weight:600; letter-spacing:1px; color:var(--text3);
+  text-transform:uppercase; text-align:left;
+  padding:0 14px 12px; border-bottom:1px solid var(--border);
+}
+td {
+  padding:14px; font-size:13.5px; color:var(--text2);
+  border-bottom:1px solid rgba(255,255,255,0.03);
+  vertical-align:middle;
+}
+tr:last-child td { border-bottom:none; }
+tr:hover td { background:rgba(255,255,255,0.02); }
+.mono { font-family:var(--font-mono); font-size:12px; }
+
+/* ── Badges ── */
+.badge {
+  display:inline-flex; align-items:center; gap:5px;
+  padding:3px 10px; border-radius:20px; font-size:11.5px; font-weight:600;
+}
+.badge-green   { background:rgba(74,222,128,0.12); color:var(--green); border:1px solid rgba(74,222,128,0.2); }
+.badge-yellow  { background:rgba(251,191,36,0.12); color:var(--yellow); border:1px solid rgba(251,191,36,0.2); }
+.badge-red     { background:rgba(248,113,113,0.12); color:var(--red); border:1px solid rgba(248,113,113,0.2); }
+.badge-orange  { background:rgba(251,146,60,0.12); color:var(--orange); border:1px solid rgba(251,146,60,0.2); }
+.badge-teal    { background:rgba(45,181,170,0.12); color:var(--teal-light); border:1px solid rgba(45,181,170,0.2); }
+.badge-lime    { background:var(--lime-glow); color:var(--lime); border:1px solid rgba(200,224,90,0.2); }
+
+/* ── Buttons ── */
+.btn {
+  display:inline-flex; align-items:center; gap:8px;
+  padding:9px 18px; border-radius:9px; font-size:13.5px; font-weight:600;
+  cursor:pointer; border:none; transition:all 0.15s; font-family:var(--font-body);
+}
+.btn-primary {
+  background:var(--lime); color:var(--bg);
+}
+.btn-primary:hover { background:var(--lime-dark); transform:translateY(-1px); box-shadow:0 4px 16px var(--lime-glow); }
+.btn-ghost {
+  background:transparent; color:var(--text2);
+  border:1px solid var(--border2);
+}
+.btn-ghost:hover { background:var(--bg3); color:var(--text); }
+.btn-sm { padding:6px 12px; font-size:12px; }
+
+/* ── Forms ── */
+.form-grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+.form-group { display:flex; flex-direction:column; gap:6px; }
+.form-group.full { grid-column:1/-1; }
+label { font-size:12px; color:var(--text3); font-weight:600; letter-spacing:0.5px; }
+input, select {
+  background:var(--bg3); border:1px solid var(--border);
+  border-radius:8px; padding:10px 14px;
+  font-size:14px; color:var(--text); font-family:var(--font-body);
+  outline:none; transition:border-color 0.15s;
+}
+input:focus, select:focus { border-color:var(--teal-light); }
+select option { background:var(--bg2); }
+
+/* ── Health bar ── */
+.hf-bar { display:flex; gap:3px; margin-top:8px; }
+.hf-seg { height:6px; border-radius:3px; flex:1; }
+.hf-g { background:var(--green); }
+.hf-y { background:var(--yellow); }
+.hf-r { background:var(--red); }
+
+/* ── RFQ specific ── */
+.rfq-grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+.rfq-card {
+  background:var(--bg3); border:1px solid var(--border);
+  border-radius:12px; padding:18px; cursor:pointer;
+  transition:all 0.2s;
+}
+.rfq-card:hover { border-color:var(--lime); box-shadow:0 0 20px var(--lime-glow); }
+.rfq-amount { font-size:22px; font-weight:700; font-family:var(--font-mono); color:var(--lime); }
+.rfq-meta   { display:flex; gap:10px; flex-wrap:wrap; margin-top:10px; }
+
+/* ── Timeline ── */
+.timeline { display:flex; flex-direction:column; gap:0; }
+.tl-item  { display:flex; gap:16px; padding-bottom:20px; position:relative; }
+.tl-item:not(:last-child) .tl-line {
+  position:absolute; left:15px; top:30px;
+  width:2px; height:100%; background:var(--border);
+}
+.tl-dot {
+  width:30px; height:30px; border-radius:50%; flex-shrink:0;
+  display:flex; align-items:center; justify-content:center;
+  font-size:14px; z-index:1;
+}
+.tl-dot.done    { background:rgba(74,222,128,0.15); border:2px solid var(--green); }
+.tl-dot.active  { background:var(--lime-glow); border:2px solid var(--lime); }
+.tl-dot.pending { background:var(--bg3); border:2px solid var(--border); }
+.tl-body { flex:1; padding-top:4px; }
+.tl-title { font-size:14px; font-weight:600; color:var(--text); }
+.tl-desc  { font-size:12px; color:var(--text2); margin-top:3px; }
+.tl-time  { font-size:11px; color:var(--text3); margin-top:2px; font-family:var(--font-mono); }
+
+/* ── Toasts ── */
+#toast-wrap { position:fixed; bottom:24px; right:24px; z-index:999; display:flex; flex-direction:column; gap:10px; }
+.toast {
+  background:var(--bg2); border:1px solid var(--border2);
+  border-radius:10px; padding:12px 18px;
+  font-size:13.5px; color:var(--text);
+  box-shadow:0 8px 32px rgba(0,0,0,0.4);
+  animation:slideUp 0.3s ease;
+  display:flex; align-items:center; gap:10px; min-width:280px;
+}
+.toast.success { border-color:rgba(74,222,128,0.4); }
+.toast.error   { border-color:rgba(248,113,113,0.4); }
+@keyframes slideUp { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:none} }
+
+/* ── Chart placeholder ── */
+.sparkline { height:50px; display:flex; align-items:flex-end; gap:3px; padding-top:8px; }
+.spark-bar {
+  flex:1; background:var(--teal-mid); border-radius:3px 3px 0 0;
+  transition:height 0.3s;
+}
+.spark-bar.lime { background:var(--lime); }
+
+/* ── Modal ── */
+.modal-overlay {
+  display:none; position:fixed; inset:0;
+  background:rgba(0,0,0,0.7); z-index:100;
+  align-items:center; justify-content:center;
+}
+.modal-overlay.open { display:flex; }
+.modal {
+  background:var(--bg2); border:1px solid var(--border2);
+  border-radius:16px; padding:28px; width:520px; max-width:95vw;
+  animation:fadeIn 0.2s ease;
+}
+.modal-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:22px; }
+.modal-title  { font-size:18px; font-weight:700; }
+.modal-close  { background:none; border:none; color:var(--text3); font-size:20px; cursor:pointer; }
+.modal-close:hover { color:var(--text); }
+.modal-footer { display:flex; justify-content:flex-end; gap:10px; margin-top:24px; }
+</style>
+</head>
+<body>
+
+<div class="shell">
+
+<!-- ── SIDEBAR ── -->
+<aside class="sidebar">
+  <div class="logo">
+    <div class="logo-squares">
+      <div class="sq sq1"></div><div class="sq sq2"></div>
+      <div class="sq sq3"></div><div class="sq sq4"></div>
+    </div>
+    <span class="logo-text">BFPay</span>
+  </div>
+
+  <nav>
+    <div class="nav-label">Overview</div>
+    <button class="nav-item active" onclick="showPage('dashboard',this)">
+      <span class="nav-icon">⬛</span> Dashboard
+    </button>
+
+    <div class="nav-label">Trading</div>
+    <button class="nav-item" onclick="showPage('rfq',this)">
+      <span class="nav-icon">📋</span> RFQ Market
+    </button>
+    <button class="nav-item" onclick="showPage('quotes',this)">
+      <span class="nav-icon">💬</span> Quotes
+    </button>
+    <button class="nav-item" onclick="showPage('trades',this)">
+      <span class="nav-icon">🔄</span> Trade List
+    </button>
+
+    <div class="nav-label">Settlement</div>
+    <button class="nav-item" onclick="showPage('settlement',this)">
+      <span class="nav-icon">✅</span> Settlement
+    </button>
+    <button class="nav-item" onclick="showPage('attestation',this)">
+      <span class="nav-icon">🔐</span> Attestation
+    </button>
+  </nav>
+
+  <div class="sidebar-footer">
+    <div class="oracle-badge">
+      <div class="pulse"></div>
+      <span>Oracle live · 12s ago</span>
+    </div>
+  </div>
+</aside>
+
+<!-- ── MAIN ── -->
+<main class="main">
+
+  <!-- ══ DASHBOARD ══ -->
+  <div id="page-dashboard" class="page active">
+    <div class="page-header">
+      <div>
+        <div class="page-title">Overview</div>
+        <div class="page-sub">Borderless Fuse Pay · B2B Lending Protocol</div>
+      </div>
+      <button class="btn btn-primary" onclick="openModal('new-rfq')">＋ New RFQ</button>
+    </div>
+
+    <div class="stats">
+      <div class="stat-card">
+        <div class="stat-label">TOTAL VOLUME</div>
+        <div class="stat-value lime">₦2.4B</div>
+        <div class="stat-sub">↑ 18% this week</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">ACTIVE DEALS</div>
+        <div class="stat-value teal">14</div>
+        <div class="stat-sub">3 pending payout</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">COLLATERAL LOCKED</div>
+        <div class="stat-value">$1.82M</div>
+        <div class="stat-sub">USYC + Fiat</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">AVG HEALTH FACTOR</div>
+        <div class="stat-value green">1.68</div>
+        <div class="stat-sub">All positions safe</div>
+      </div>
+    </div>
+
+    <!-- Two-col layout -->
+    <div style="display:grid;grid-template-columns:1.4fr 1fr;gap:20px">
+
+      <!-- Recent deals -->
+      <div class="card">
+        <div class="card-header">
+          <span class="card-title">Recent Deals</span>
+          <button class="btn btn-ghost btn-sm" onclick="showPage('trades',document.querySelector('[onclick*=trades]'))">View all</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr>
+              <th>Deal ID</th><th>Amount</th><th>Status</th><th>HF</th>
+            </tr></thead>
+            <tbody id="dash-deals"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Health Monitor -->
+      <div class="card">
+        <div class="card-header"><span class="card-title">Collateral Health</span></div>
+        <div class="card-body" id="health-monitor"></div>
+      </div>
+    </div>
+
+    <!-- Sparkline chart -->
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Daily Lending Volume (₦)</span>
+        <span class="badge badge-lime">Last 10 days</span>
+      </div>
+      <div class="card-body">
+        <div class="sparkline" id="sparkline"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ RFQ MARKET ══ -->
+  <div id="page-rfq" class="page">
+    <div class="page-header">
+      <div>
+        <div class="page-title">RFQ Market</div>
+        <div class="page-sub">Open requests for Naira liquidity</div>
+      </div>
+      <button class="btn btn-primary" onclick="openModal('new-rfq')">＋ Create RFQ</button>
+    </div>
+
+    <div class="rfq-grid" id="rfq-grid"></div>
+  </div>
+
+  <!-- ══ QUOTES ══ -->
+  <div id="page-quotes" class="page">
+    <div class="page-header">
+      <div>
+        <div class="page-title">Quote Book</div>
+        <div class="page-sub">Live lender quotes against open RFQs</div>
+      </div>
+      <button class="btn btn-primary" onclick="openModal('submit-quote')">Submit Quote</button>
+    </div>
+
+    <div class="card">
+      <div class="card-header"><span class="card-title">Active Quotes</span></div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr>
+            <th>RFQ Ref</th><th>Lender</th><th>Rate/Day</th><th>Valid Until</th><th>Status</th><th></th>
+          </tr></thead>
+          <tbody id="quotes-table"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ TRADE LIST ══ -->
+  <div id="page-trades" class="page">
+    <div class="page-header">
+      <div>
+        <div class="page-title">Trade List</div>
+        <div class="page-sub">All matched deals and their lifecycle</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">All Deals</span>
+        <div style="display:flex;gap:8px">
+          <span class="badge badge-green" id="filter-active" onclick="filterDeals('ACTIVE')" style="cursor:pointer">Active</span>
+          <span class="badge badge-teal"  id="filter-all"    onclick="filterDeals('ALL')"    style="cursor:pointer">All</span>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr>
+            <th>Deal ID</th><th>Borrower</th><th>Lender</th><th>Amount NGN</th>
+            <th>Collateral</th><th>Fee/Day</th><th>Tenor</th><th>Health</th><th>Status</th><th></th>
+          </tr></thead>
+          <tbody id="trades-table"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ SETTLEMENT ══ -->
+  <div id="page-settlement" class="page">
+    <div class="page-header">
+      <div>
+        <div class="page-title">Settlement</div>
+        <div class="page-sub">Confirm fiat payouts and repayments</div>
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+
+      <div class="card">
+        <div class="card-header"><span class="card-title">Confirm Payout</span></div>
+        <div class="card-body">
+          <div class="form-group" style="margin-bottom:14px">
+            <label>DEAL ID</label>
+            <input id="payout-dealid" placeholder="0xdeal..." />
+          </div>
+          <div class="form-group" style="margin-bottom:20px">
+            <label>FIAT REFERENCE</label>
+            <input id="payout-ref" placeholder="FP-TXN-0001" />
+          </div>
+          <button class="btn btn-primary" onclick="confirmPayout()">✅ Confirm NGN Payout</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header"><span class="card-title">Confirm Repayment</span></div>
+        <div class="card-body">
+          <div class="form-group" style="margin-bottom:14px">
+            <label>DEAL ID</label>
+            <input id="repay-dealid" placeholder="0xdeal..." />
+          </div>
+          <div class="form-group" style="margin-bottom:20px">
+            <label>REPAYMENT REFERENCE</label>
+            <input id="repay-ref" placeholder="FP-REPAY-0001" />
+          </div>
+          <button class="btn btn-primary" onclick="confirmRepayment()">💰 Confirm Repayment</button>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Settlement log -->
+    <div class="card">
+      <div class="card-header"><span class="card-title">Settlement Log</span></div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr>
+            <th>Deal ID</th><th>Type</th><th>Amount NGN</th><th>Fiat Ref</th><th>Confirmed At</th>
+          </tr></thead>
+          <tbody id="settlement-log"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ ATTESTATION ══ -->
+  <div id="page-attestation" class="page">
+    <div class="page-header">
+      <div>
+        <div class="page-title">Oracle Attestation</div>
+        <div class="page-sub">Onchain proof of reserve — JNVA balance attestations</div>
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1.4fr;gap:20px">
+
+      <div class="card">
+        <div class="card-header"><span class="card-title">Push Attestation</span></div>
+        <div class="card-body">
+          <div class="form-group" style="margin-bottom:12px">
+            <label>DEAL ID</label>
+            <input id="att-dealid" placeholder="0xdeal..." />
+          </div>
+          <div class="form-group" style="margin-bottom:12px">
+            <label>COLLATERAL USD VALUE</label>
+            <input id="att-collateral" placeholder="100000" type="number" />
+          </div>
+          <div class="form-group" style="margin-bottom:12px">
+            <label>OUTSTANDING NGN DRAW</label>
+            <input id="att-drawn" placeholder="50000000" type="number" />
+          </div>
+          <div class="form-group" style="margin-bottom:20px">
+            <label>NGN/USD RATE</label>
+            <input id="att-rate" placeholder="1580" type="number" value="1580" />
+          </div>
+          <button class="btn btn-primary" style="width:100%" onclick="pushAttestation()">🔐 Attest Onchain</button>
+        </div>
+      </div>
+
+      <!-- Attestation history -->
+      <div class="card">
+        <div class="card-header"><span class="card-title">Attestation History</span></div>
+        <div id="att-history" style="padding:16px">
+          <div id="timeline" class="timeline"></div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- All attestations table -->
+    <div class="card">
+      <div class="card-header"><span class="card-title">All Attestations</span></div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr>
+            <th>Deal</th><th>Collateral USD</th><th>Drawn NGN</th><th>Health Factor</th><th>State</th><th>Oracle</th><th>Time</th>
+          </tr></thead>
+          <tbody id="att-table"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</main>
+</div>
+
+<!-- ══ MODALS ══ -->
+
+<!-- New RFQ -->
+<div class="modal-overlay" id="modal-new-rfq">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Create RFQ</div>
+      <button class="modal-close" onclick="closeModal('new-rfq')">✕</button>
+    </div>
+    <div class="form-grid">
+      <div class="form-group">
+        <label>NGN AMOUNT</label>
+        <input id="rfq-amount" placeholder="50000000" type="number" />
+      </div>
+      <div class="form-group">
+        <label>TENOR (DAYS)</label>
+        <input id="rfq-tenor" placeholder="7" type="number" value="7" />
+      </div>
+      <div class="form-group">
+        <label>MAX FEE (BPS/DAY)</label>
+        <input id="rfq-maxfee" placeholder="20" type="number" value="20" />
+      </div>
+      <div class="form-group">
+        <label>COLLATERAL TYPE</label>
+        <select id="rfq-colltype">
+          <option value="0">USYC</option>
+          <option value="1">USDC</option>
+          <option value="2">GBP Fiat</option>
+          <option value="3">USD Fiat</option>
+          <option value="4">EUR Fiat</option>
+        </select>
+      </div>
+      <div class="form-group full">
+        <label>COLLATERAL VALUE (USD)</label>
+        <input id="rfq-collateral" placeholder="100000" type="number" />
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('new-rfq')">Cancel</button>
+      <button class="btn btn-primary" onclick="createRFQ()">Create RFQ</button>
+    </div>
+  </div>
+</div>
+
+<!-- Submit Quote -->
+<div class="modal-overlay" id="modal-submit-quote">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Submit Quote</div>
+      <button class="modal-close" onclick="closeModal('submit-quote')">✕</button>
+    </div>
+    <div class="form-grid">
+      <div class="form-group full">
+        <label>RFQ ID</label>
+        <input id="quote-rfqid" placeholder="0xrfq..." />
+      </div>
+      <div class="form-group">
+        <label>DAILY FEE (BPS)</label>
+        <input id="quote-fee" placeholder="15" type="number" value="15" />
+      </div>
+      <div class="form-group">
+        <label>VALID FOR (SECONDS)</label>
+        <input id="quote-valid" placeholder="120" type="number" value="120" />
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" onclick="closeModal('submit-quote')">Cancel</button>
+      <button class="btn btn-primary" onclick="submitQuote()">Submit Quote</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast container -->
+<div id="toast-wrap"></div>
+
+<script>
+// ─── Mock Data ─────────────────────────────────────────────────────────────
+const DEALS = [
+  { id:"0xd1a2...f3b4", borrower:"0xB1..a2", lender:"0xL9..c4", amountNGN:"50,000,000", collateral:"USYC", fee:"0.15%", tenor:7, hf:1.82, state:"HEALTHY", status:"ACTIVE",   payoutRef:"FP-001", repayRef:""        },
+  { id:"0xc4f1...a2b9", borrower:"0xB2..d1", lender:"0xL3..f2", amountNGN:"120,000,000",collateral:"GBP Fiat",fee:"0.20%",tenor:14,hf:1.43,state:"HEALTHY", status:"ACTIVE",   payoutRef:"FP-002", repayRef:""        },
+  { id:"0xe9b3...7c1a", borrower:"0xB3..e9", lender:"0xL7..a1", amountNGN:"30,000,000", collateral:"USDC",    fee:"0.18%",tenor:3, hf:1.09,state:"WARNING", status:"ACTIVE",   payoutRef:"FP-003", repayRef:""        },
+  { id:"0xa1c2...d4e5", borrower:"0xB4..f1", lender:"0xL2..b3", amountNGN:"75,000,000", collateral:"USYC",    fee:"0.10%",tenor:30,hf:2.10,state:"HEALTHY", status:"REPAID",   payoutRef:"FP-004", repayRef:"FP-R-001"},
+  { id:"0xf7e8...1b2c", borrower:"0xB5..c2", lender:"0xL8..d4", amountNGN:"200,000,000",collateral:"USD Fiat",fee:"0.25%",tenor:7, hf:0.95,state:"MARGIN CALL",status:"ACTIVE",payoutRef:"FP-005", repayRef:""        },
+];
+
+const RFQS = [
+  { id:"0xr1a2...c3d4", borrower:"0xB6..a1", amountNGN:"80,000,000",  tenor:10, maxFee:"0.20%", coll:"USYC",     collVal:"$120K", time:"2 min ago",  quotes:3 },
+  { id:"0xr3c4...e5f6", borrower:"0xB7..b2", amountNGN:"45,000,000",  tenor:5,  maxFee:"0.25%", coll:"GBP Fiat", collVal:"£60K",  time:"8 min ago",  quotes:1 },
+  { id:"0xr5e6...g7h8", borrower:"0xB8..c3", amountNGN:"150,000,000", tenor:14, maxFee:"0.15%", coll:"USYC",     collVal:"$200K", time:"22 min ago", quotes:5 },
+  { id:"0xr7g8...i9j0", borrower:"0xB9..d4", amountNGN:"25,000,000",  tenor:3,  maxFee:"0.30%", coll:"USDC",     collVal:"$18K",  time:"1 hr ago",   quotes:0 },
+];
+
+const QUOTES = [
+  { rfq:"0xr1a2...c3d4", lender:"0xL1..aa", fee:"0.14%", valid:"01:45", accepted:false },
+  { rfq:"0xr1a2...c3d4", lender:"0xL2..bb", fee:"0.17%", valid:"00:32", accepted:false },
+  { rfq:"0xr3c4...e5f6", lender:"0xL3..cc", fee:"0.22%", valid:"03:10", accepted:true  },
+  { rfq:"0xr5e6...g7h8", lender:"0xL4..dd", fee:"0.13%", valid:"04:55", accepted:false },
+  { rfq:"0xr5e6...g7h8", lender:"0xL5..ee", fee:"0.15%", valid:"02:20", accepted:false },
+];
+
+const ATTESTATIONS = [
+  { deal:"0xd1a2...f3b4", collUSD:"$102,400", drawn:"₦50M",  hf:1.82, state:"HEALTHY",     oracle:"0xOrc..11", time:"12s ago"  },
+  { deal:"0xc4f1...a2b9", collUSD:"$184,600", drawn:"₦120M", hf:1.43, state:"HEALTHY",     oracle:"0xOrc..11", time:"12s ago"  },
+  { deal:"0xe9b3...7c1a", collUSD:"$20,900",  drawn:"₦30M",  hf:1.09, state:"WARNING",     oracle:"0xOrc..11", time:"12s ago"  },
+  { deal:"0xf7e8...1b2c", collUSD:"$124,800", drawn:"₦200M", hf:0.95, state:"MARGIN CALL", oracle:"0xOrc..11", time:"12s ago"  },
+];
+
+const SETTLEMENT_LOG = [
+  { deal:"0xd1a2...f3b4", type:"PAYOUT",    amount:"₦50,000,000",  ref:"FP-001",     time:"2026-02-27 14:23" },
+  { deal:"0xc4f1...a2b9", type:"PAYOUT",    amount:"₦120,000,000", ref:"FP-002",     time:"2026-02-27 11:05" },
+  { deal:"0xa1c2...d4e5", type:"REPAYMENT", amount:"₦75,000,000",  ref:"FP-R-001",   time:"2026-02-26 09:44" },
+  { deal:"0xe9b3...7c1a", type:"PAYOUT",    amount:"₦30,000,000",  ref:"FP-003",     time:"2026-02-26 16:30" },
+];
+
+// ─── Navigation ────────────────────────────────────────────────────────────
+function showPage(name, btn) {
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(b=>b.classList.remove('active'));
+  document.getElementById('page-'+name).classList.add('active');
+  if(btn) btn.classList.add('active');
+  renderPage(name);
+}
+
+function renderPage(name) {
+  if(name==='dashboard')   renderDashboard();
+  if(name==='rfq')         renderRFQ();
+  if(name==='quotes')      renderQuotes();
+  if(name==='trades')      renderTrades();
+  if(name==='settlement')  renderSettlement();
+  if(name==='attestation') renderAttestation();
+}
+
+// ─── Renderers ─────────────────────────────────────────────────────────────
+function renderDashboard() {
+  // Recent deals
+  const tbody = document.getElementById('dash-deals');
+  tbody.innerHTML = DEALS.slice(0,4).map(d=>`
+    <tr>
+      <td><span class="mono">${d.id}</span></td>
+      <td style="font-family:var(--font-mono);color:var(--lime)">₦${d.amountNGN}</td>
+      <td>${statusBadge(d.status)}</td>
+      <td>${hfBadge(d.hf, d.state)}</td>
+    </tr>`).join('');
+
+  // Health monitor
+  document.getElementById('health-monitor').innerHTML = DEALS.filter(d=>d.status==='ACTIVE').map(d=>`
+    <div style="margin-bottom:16px">
+      <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+        <span style="font-size:12px;color:var(--text2);font-family:var(--font-mono)">${d.id}</span>
+        <span style="font-size:12px;font-weight:600;color:${hfColor(d.state)}">${d.hf}x</span>
+      </div>
+      <div class="hf-bar">
+        <div class="hf-seg hf-g" style="flex:${Math.min(d.hf/2,1)*6}"></div>
+        <div class="hf-seg hf-y" style="flex:1"></div>
+        <div class="hf-seg hf-r" style="flex:0.5"></div>
+      </div>
+      <div style="font-size:11px;color:var(--text3);margin-top:3px">${d.collateral} · ₦${d.amountNGN}</div>
+    </div>`).join('');
+
+  // Sparkline
+  const vals = [180,240,210,320,280,410,380,460,390,520];
+  const max  = Math.max(...vals);
+  document.getElementById('sparkline').innerHTML = vals.map((v,i)=>`
+    <div class="spark-bar ${i===vals.length-1?'lime':''}" style="height:${(v/max)*44}px"></div>`).join('');
+}
+
+function renderRFQ() {
+  document.getElementById('rfq-grid').innerHTML = RFQS.map(r=>`
+    <div class="rfq-card" onclick="openModal('submit-quote')">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start">
+        <div>
+          <div class="rfq-amount">₦${Number(r.amountNGN.replace(/,/g,'')).toLocaleString()}</div>
+          <div style="font-size:12px;color:var(--text3);margin-top:2px;font-family:var(--font-mono)">${r.id}</div>
+        </div>
+        <span class="badge badge-lime">${r.quotes} quotes</span>
+      </div>
+      <div class="rfq-meta">
+        <span class="badge badge-teal">⏱ ${r.tenor}d</span>
+        <span class="badge badge-teal">🔒 ${r.coll}</span>
+        <span class="badge badge-teal">💰 ${r.collVal}</span>
+        <span class="badge badge-yellow">Max ${r.maxFee}/day</span>
+      </div>
+      <div style="font-size:11px;color:var(--text3);margin-top:10px">📍 ${r.borrower} · ${r.time}</div>
+    </div>`).join('');
+}
+
+function renderQuotes() {
+  document.getElementById('quotes-table').innerHTML = QUOTES.map(q=>`
+    <tr>
+      <td><span class="mono">${q.rfq}</span></td>
+      <td><span class="mono">${q.lender}</span></td>
+      <td style="color:var(--lime);font-weight:600">${q.fee}</td>
+      <td><span class="mono">${q.valid}</span></td>
+      <td>${q.accepted
+        ? '<span class="badge badge-green">✓ Accepted</span>'
+        : '<span class="badge badge-teal">Open</span>'}</td>
+      <td>${q.accepted?'':`<button class="btn btn-primary btn-sm" onclick="acceptQuote('${q.rfq}')">Accept</button>`}</td>
+    </tr>`).join('');
+}
+
+function renderTrades(filter='ALL') {
+  const list = filter==='ALL' ? DEALS : DEALS.filter(d=>d.status===filter);
+  document.getElementById('trades-table').innerHTML = list.map(d=>`
+    <tr>
+      <td><span class="mono">${d.id}</span></td>
+      <td><span class="mono" style="color:var(--text3)">${d.borrower}</span></td>
+      <td><span class="mono" style="color:var(--text3)">${d.lender}</span></td>
+      <td style="color:var(--lime);font-family:var(--font-mono)">₦${d.amountNGN}</td>
+      <td><span class="badge badge-teal">${d.collateral}</span></td>
+      <td style="color:var(--lime)">${d.fee}</td>
+      <td>${d.tenor}d</td>
+      <td>${hfBadge(d.hf, d.state)}</td>
+      <td>${statusBadge(d.status)}</td>
+      <td>
+        <button class="btn btn-ghost btn-sm" onclick="showDealDetail('${d.id}')">Details</button>
+      </td>
+    </tr>`).join('');
+}
+
+function renderSettlement() {
+  document.getElementById('settlement-log').innerHTML = SETTLEMENT_LOG.map(s=>`
+    <tr>
+      <td><span class="mono">${s.deal}</span></td>
+      <td><span class="badge ${s.type==='PAYOUT'?'badge-teal':'badge-green'}">${s.type}</span></td>
+      <td style="font-family:var(--font-mono);color:var(--lime)">${s.amount}</td>
+      <td><span class="mono">${s.ref}</span></td>
+      <td style="color:var(--text3);font-size:12px">${s.time}</td>
+    </tr>`).join('');
+}
+
+function renderAttestation() {
+  // Timeline
+  document.getElementById('timeline').innerHTML = [
+    { icon:'🔐', title:'Oracle Signed', desc:'Balance fetched from banking API', time:'12s ago', done:true },
+    { icon:'📡', title:'Attestation Pushed', desc:'Tx: 0x7a3f...2b1c · Block 18,423,791', time:'12s ago', done:true },
+    { icon:'📊', title:'Health Factor Updated', desc:'HF = 1.82 · HEALTHY', time:'12s ago', done:true },
+    { icon:'🔔', title:'Next Attestation', desc:'In ~48 seconds', time:'', done:false },
+  ].map((t,i)=>`
+    <div class="tl-item">
+      <div class="tl-line"></div>
+      <div class="tl-dot ${t.done?'done':'pending'}">${t.icon}</div>
+      <div class="tl-body">
+        <div class="tl-title">${t.title}</div>
+        <div class="tl-desc">${t.desc}</div>
+        ${t.time?`<div class="tl-time">${t.time}</div>`:''}
+      </div>
+    </div>`).join('');
+
+  document.getElementById('att-table').innerHTML = ATTESTATIONS.map(a=>`
+    <tr>
+      <td><span class="mono">${a.deal}</span></td>
+      <td style="color:var(--lime)">${a.collUSD}</td>
+      <td>${a.drawn}</td>
+      <td style="font-family:var(--font-mono);font-weight:600;color:${hfColor(a.state)}">${a.hf}x</td>
+      <td>${stateBadge(a.state)}</td>
+      <td><span class="mono" style="color:var(--text3)">${a.oracle}</span></td>
+      <td style="color:var(--text3);font-size:12px">${a.time}</td>
+    </tr>`).join('');
+}
+
+// ─── Badge helpers ─────────────────────────────────────────────────────────
+function statusBadge(s) {
+  const m = { ACTIVE:'badge-teal', MATCHED:'badge-lime', REPAID:'badge-green', LIQUIDATED:'badge-red', OPEN:'badge-yellow' };
+  return `<span class="badge ${m[s]||'badge-teal'}">${s}</span>`;
+}
+function stateBadge(s) {
+  const m = { HEALTHY:'badge-green', WARNING:'badge-yellow', 'MARGIN CALL':'badge-orange', LIQUIDATING:'badge-red' };
+  return `<span class="badge ${m[s]||'badge-teal'}">${s}</span>`;
+}
+function hfBadge(hf, state) {
+  return `<span style="font-family:var(--font-mono);color:${hfColor(state)}">${hf}x</span>`;
+}
+function hfColor(state) {
+  return { HEALTHY:'var(--green)', WARNING:'var(--yellow)', 'MARGIN CALL':'var(--orange)', LIQUIDATING:'var(--red)' }[state] || 'var(--text)';
+}
+
+// ─── Modal ─────────────────────────────────────────────────────────────────
+function openModal(name)  { document.getElementById('modal-'+name).classList.add('open'); }
+function closeModal(name) { document.getElementById('modal-'+name).classList.remove('open'); }
+
+// ─── Actions (mock blockchain calls) ──────────────────────────────────────
+async function createRFQ() {
+  const amt    = document.getElementById('rfq-amount').value;
+  const tenor  = document.getElementById('rfq-tenor').value;
+  const maxfee = document.getElementById('rfq-maxfee').value;
+  const colType   = document.getElementById('rfq-colltype').options[document.getElementById('rfq-colltype').selectedIndex].value;
+  const collV  = document.getElementById('rfq-collateral').value;
+
+  if(!amt||!collV) { toast('Please fill all fields','error'); return; }
+
+  closeModal('new-rfq');
+  toast(`Creating RFQ for ₦${Number(amt).toLocaleString()}...`,'teal');
+  alert(colType);
+
+  /*setTimeout(()=>{
+    const id = '0x'+Math.random().toString(16).slice(2,10)+'...'+Math.random().toString(16).slice(2,6);
+    RFQS.unshift({ id, borrower:'0xYou..00', amountNGN:amt, tenor:Number(tenor), maxFee:(maxfee/100)+'%', coll, collVal:'$'+collV, time:'just now', quotes:0 });
+    toast(`✅ RFQ created! ID: ${id}`,'success');
+    renderRFQ();
+  }, 1500);*/
+
+  try {
+    const res = await fetch('/api/rfq/create', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        amountNGN:     amt,
+        tenorDays:     Number(tenor),
+        maxFeeBPS:     Number(maxfee),
+        collType:      Number(colType),
+        collateralUSD: String(Math.round(Number(collV) * 1e6)) // convert to 1e6
+      })
+    });
+
+    const data = await res.json();
+
+    if (!data.success) throw new Error(data.error);
+
+    RFQS.unshift({
+      id:        data.rfqId,
+      borrower:  '0xYou..00',
+      amountNGN: amt,
+      tenor:     Number(tenor),
+      maxFee:    (maxfee / 100) + '%',
+      collVal:   '$' + collV,
+      time:      'just now',
+      quotes:    0
+    });
+
+    toast(`✅ RFQ created! ID: ${data.rfqId}`, 'success');
+    //renderRFQ();
+  } catch (err) {
+    toast(`Error creating RFQ: ${err.message}`, 'error');
+  }
+}
+
+function submitQuote() {
+  const rfqId = document.getElementById('quote-rfqid').value || '0xr1a2...c3d4';
+  const fee   = document.getElementById('quote-fee').value;
+  const valid = document.getElementById('quote-valid').value;
+
+  closeModal('submit-quote');
+  toast(`Submitting quote ${fee/100}%/day...`,'teal');
+
+  setTimeout(()=>{
+    QUOTES.unshift({ rfq:rfqId, lender:'0xYou..00', fee:(fee/100)+'%', valid:'02:00', accepted:false });
+    toast(`✅ Quote submitted at ${fee/100}%/day`,'success');
+    renderQuotes();
+  }, 1200);
+}
+
+function acceptQuote(rfqId) {
+  toast(`Accepting best quote for ${rfqId}...`,'teal');
+  setTimeout(()=>{
+    const dealId = '0x'+Math.random().toString(16).slice(2,14);
+    toast(`✅ Deal opened! ID: ${dealId.slice(0,14)}...`,'success');
+  }, 1500);
+}
+
+function confirmPayout() {
+  const id  = document.getElementById('payout-dealid').value;
+  const ref = document.getElementById('payout-ref').value;
+  if(!id||!ref) { toast('Enter deal ID and fiat reference','error'); return; }
+  toast(`Confirming payout for ${id.slice(0,12)}...`,'teal');
+  setTimeout(()=>{
+    SETTLEMENT_LOG.unshift({ deal:id, type:'PAYOUT', amount:'₦—', ref, time:new Date().toLocaleString() });
+    toast(`✅ Payout confirmed | ${ref}`,'success');
+    renderSettlement();
+    document.getElementById('payout-dealid').value='';
+    document.getElementById('payout-ref').value='';
+  }, 1400);
+}
+
+function confirmRepayment() {
+  const id  = document.getElementById('repay-dealid').value;
+  const ref = document.getElementById('repay-ref').value;
+  if(!id||!ref) { toast('Enter deal ID and repayment reference','error'); return; }
+  toast(`Confirming repayment for ${id.slice(0,12)}...`,'teal');
+  setTimeout(()=>{
+    SETTLEMENT_LOG.unshift({ deal:id, type:'REPAYMENT', amount:'₦—', ref, time:new Date().toLocaleString() });
+    toast(`✅ Repayment confirmed | ${ref}`,'success');
+    renderSettlement();
+    document.getElementById('repay-dealid').value='';
+    document.getElementById('repay-ref').value='';
+  }, 1400);
+}
+
+function pushAttestation() {
+  const deal = document.getElementById('att-dealid').value;
+  const coll = document.getElementById('att-collateral').value;
+  const draw = document.getElementById('att-drawn').value;
+  const rate = document.getElementById('att-rate').value;
+  if(!deal||!coll||!draw) { toast('Fill all attestation fields','error'); return; }
+
+  const hf = ((coll * 0.8 * rate) / draw).toFixed(2);
+  const state = hf>=1.1?'HEALTHY':hf>=1.0?'WARNING':'MARGIN CALL';
+
+  toast(`Signing & pushing attestation onchain...`,'teal');
+  setTimeout(()=>{
+    ATTESTATIONS.unshift({ deal:deal.slice(0,14)+'...', collUSD:'$'+Number(coll).toLocaleString(), drawn:'₦'+Number(draw).toLocaleString(), hf:Number(hf), state, oracle:'0xOrc..11', time:'just now' });
+    toast(`✅ Attested onchain | HF: ${hf}x · ${state}`,'success');
+    renderAttestation();
+    document.getElementById('att-dealid').value='';
+  }, 1800);
+}
+
+function filterDeals(f) {
+  renderTrades(f);
+}
+
+function showDealDetail(id) {
+  toast(`Deal details for ${id}`,'teal');
+}
+
+// ─── Toast ─────────────────────────────────────────────────────────────────
+function toast(msg, type='teal') {
+  const icons = { success:'✅', error:'❌', teal:'⚡' };
+  const wrap = document.getElementById('toast-wrap');
+  const el   = document.createElement('div');
+  el.className = `toast ${type==='success'?'success':type==='error'?'error':''}`;
+  el.innerHTML = `<span>${icons[type]||'ℹ'}</span><span>${msg}</span>`;
+  wrap.appendChild(el);
+  setTimeout(()=>{ el.style.opacity='0'; el.style.transform='translateY(8px)'; el.style.transition='all 0.3s';
+    setTimeout(()=>el.remove(), 300); }, 3500);
+}
+
+// ─── Init ──────────────────────────────────────────────────────────────────
+renderDashboard();
+setInterval(()=>{
+  // Simulate oracle pulse
+  document.querySelector('.pulse').style.background='var(--lime)';
+  setTimeout(()=>{ document.querySelector('.pulse').style.background='var(--green)'; }, 500);
+}, 12000);
+</script>
+</body>
+</html>

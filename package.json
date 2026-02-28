@@ -2,7 +2,8 @@
   "name": "bfpay_fx",
   "version": "1.0.0",
   "description": "\"# bfpay_fx\"",
-  "main": "index.js",
+  "main": "app.js",
+  "dev": "ts-node src/app.ts",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
@@ -32,6 +33,7 @@
   },
   "devDependencies": {
     "@types/axios": "^0.9.36",
+    "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
     "@types/node": "^25.3.2"
   }

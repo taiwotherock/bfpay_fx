@@ -24,6 +24,12 @@ npm install --save-dev @types/axios
 sudo npm install crypto-js
 sudo npm install mysql2
 
+npm i cors
+npm install -D @types/express @types/cors
+
+
+To run  npx ts-node src/app.ts  (Nodejs html & Typescript)
+
 
 f2d68602-382c-5eca-a719-fe40ac77d234
 
